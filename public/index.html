@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,27 +7,135 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
+    /* ===== テーマ変数 ===== */
+    :root, [data-theme="light"] {
+      --bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --card-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      --text: #1a1a2e;
+      --text-sub: #888;
+      --border: #ddd;
+      --input-bg: #fff;
+      --input-focus: #4f8ef7;
+      --btn-primary: #4f8ef7;
+      --btn-primary-hover: #3a7ae8;
+      --filter-bg: #fff;
+      --filter-text: #555;
+      --li-hover: #f8f9ff;
+      --li-border: #f0f0f0;
+      --drag-over: #e8f0fe;
+      --empty-color: #bbb;
+      --theme-btn-bg: #f0f2f5;
+      --theme-btn-text: #555;
+      --theme-btn-active: #4f8ef7;
+      --search-bg: #f8f9ff;
+    }
+
+    [data-theme="gradient"] {
+      --bg: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      --card-bg: rgba(255,255,255,0.18);
+      --card-shadow: 0 8px 32px rgba(102,126,234,0.25);
+      --text: #fff;
+      --text-sub: rgba(255,255,255,0.75);
+      --border: rgba(255,255,255,0.35);
+      --input-bg: rgba(255,255,255,0.25);
+      --input-focus: #fff;
+      --btn-primary: rgba(255,255,255,0.3);
+      --btn-primary-hover: rgba(255,255,255,0.45);
+      --filter-bg: rgba(255,255,255,0.15);
+      --filter-text: rgba(255,255,255,0.85);
+      --li-hover: rgba(255,255,255,0.15);
+      --li-border: rgba(255,255,255,0.15);
+      --drag-over: rgba(255,255,255,0.25);
+      --empty-color: rgba(255,255,255,0.6);
+      --theme-btn-bg: rgba(255,255,255,0.15);
+      --theme-btn-text: rgba(255,255,255,0.85);
+      --theme-btn-active: rgba(255,255,255,0.45);
+      --search-bg: rgba(255,255,255,0.2);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f0f1a;
+      --card-bg: #1a1a2e;
+      --card-shadow: 0 4px 32px rgba(0,0,0,0.5);
+      --text: #e8eaf6;
+      --text-sub: #7986cb;
+      --border: #2a2a45;
+      --input-bg: #12122b;
+      --input-focus: #7986cb;
+      --btn-primary: #3d5afe;
+      --btn-primary-hover: #536dfe;
+      --filter-bg: #12122b;
+      --filter-text: #9fa8da;
+      --li-hover: #1e1e35;
+      --li-border: #2a2a45;
+      --drag-over: #1a237e;
+      --empty-color: #4a5090;
+      --theme-btn-bg: #12122b;
+      --theme-btn-text: #9fa8da;
+      --theme-btn-active: #3d5afe;
+      --search-bg: #12122b;
+    }
+
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
+      background: var(--bg);
       min-height: 100vh;
       margin: 0;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       padding: 40px 16px;
+      transition: background 0.4s ease;
     }
 
     .card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
       padding: 32px;
       width: 100%;
-      max-width: 620px;
+      max-width: 640px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      transition: background 0.4s ease, box-shadow 0.4s ease;
     }
 
-    h1 { font-size: 1.6rem; margin: 0 0 20px; color: #1a1a2e; }
+    /* ヘッダー行 */
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    h1 { font-size: 1.6rem; margin: 0; color: var(--text); }
+
+    /* テーマ切り替えボタン */
+    .theme-switcher {
+      display: flex;
+      gap: 6px;
+    }
+
+    .theme-btn {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--theme-btn-bg);
+      color: var(--theme-btn-text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .theme-btn.active {
+      background: var(--theme-btn-active);
+      border-color: var(--theme-btn-active);
+      color: #fff;
+    }
 
     /* 入力エリア */
     .input-row {
@@ -38,44 +146,38 @@
     }
 
     .input-row input[type="text"] {
-      flex: 1 1 200px;
+      flex: 1 1 180px;
       padding: 10px 14px;
       font-size: 1rem;
-      border: 2px solid #ddd;
+      border: 1.5px solid var(--border);
       border-radius: 8px;
       outline: none;
-      transition: border-color 0.2s;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: border-color 0.2s, background 0.4s;
     }
-    .input-row input[type="text"]:focus { border-color: #4f8ef7; }
+    .input-row input[type="text"]::placeholder { color: var(--text-sub); }
+    .input-row input[type="text"]:focus { border-color: var(--input-focus); }
 
-    .input-row input[type="date"] {
-      padding: 10px 8px;
-      font-size: 0.88rem;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      outline: none;
-      color: #555;
-      transition: border-color 0.2s;
-    }
-    .input-row input[type="date"]:focus { border-color: #4f8ef7; }
-
+    .input-row input[type="date"],
     .input-row select {
       padding: 10px 8px;
       font-size: 0.88rem;
-      border: 2px solid #ddd;
+      border: 1.5px solid var(--border);
       border-radius: 8px;
       outline: none;
-      background: #fff;
-      color: #555;
+      background: var(--input-bg);
+      color: var(--text);
       cursor: pointer;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, background 0.4s;
     }
-    .input-row select:focus { border-color: #4f8ef7; }
+    .input-row input[type="date"]:focus,
+    .input-row select:focus { border-color: var(--input-focus); }
 
     .input-row button {
       padding: 10px 18px;
       font-size: 1rem;
-      background: #4f8ef7;
+      background: var(--btn-primary);
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -83,23 +185,23 @@
       transition: background 0.2s;
       white-space: nowrap;
     }
-    .input-row button:hover { background: #3a7ae8; }
+    .input-row button:hover { background: var(--btn-primary-hover); }
 
-    /* 検索バー */
-    .search-row {
-      margin-bottom: 12px;
-    }
+    /* 検索 */
+    .search-row { margin-bottom: 12px; }
     .search-row input {
       width: 100%;
       padding: 9px 14px 9px 36px;
       font-size: 0.95rem;
-      border: 2px solid #ddd;
+      border: 1.5px solid var(--border);
       border-radius: 8px;
       outline: none;
-      background: #f8f9ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 12px center;
-      transition: border-color 0.2s;
+      background: var(--search-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.868-3.833zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 12px center;
+      color: var(--text);
+      transition: border-color 0.2s, background 0.4s;
     }
-    .search-row input:focus { border-color: #4f8ef7; background-color: #fff; }
+    .search-row input::placeholder { color: var(--text-sub); }
+    .search-row input:focus { border-color: var(--input-focus); }
 
     /* stats行 */
     .stats-row {
@@ -111,13 +213,13 @@
       flex-wrap: wrap;
       gap: 8px;
     }
-    .stats { font-size: 0.85rem; color: #888; }
-    .stats span { color: #4f8ef7; font-weight: bold; }
+    .stats { font-size: 0.85rem; color: var(--text-sub); }
+    .stats span { color: var(--input-focus); font-weight: bold; }
 
     .clear-btn {
       padding: 4px 12px;
       font-size: 0.8rem;
-      background: #fff;
+      background: transparent;
       color: #e74c3c;
       border: 1.5px solid #e74c3c;
       border-radius: 20px;
@@ -126,7 +228,7 @@
     }
     .clear-btn:hover { background: #e74c3c; color: #fff; }
 
-    /* フィルター行 */
+    /* フィルター */
     .filter-row {
       display: flex;
       gap: 8px;
@@ -136,35 +238,46 @@
     .filter-row button {
       padding: 6px 14px;
       font-size: 0.85rem;
-      border: 2px solid #ddd;
+      border: 1.5px solid var(--border);
       border-radius: 20px;
-      background: #fff;
+      background: var(--filter-bg);
       cursor: pointer;
       transition: all 0.2s;
-      color: #555;
+      color: var(--filter-text);
     }
-    .filter-row button.active { background: #4f8ef7; border-color: #4f8ef7; color: #fff; }
-    .filter-row button:hover:not(.active) { border-color: #4f8ef7; color: #4f8ef7; }
+    .filter-row button.active { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
+    .filter-row button:hover:not(.active) { border-color: var(--input-focus); color: var(--input-focus); }
 
     /* リスト */
     ul { list-style: none; padding: 0; margin: 0; }
+
+    /* 追加アニメーション */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideOut {
+      from { opacity: 1; transform: translateX(0); max-height: 80px; }
+      to   { opacity: 0; transform: translateX(30px); max-height: 0; padding: 0; }
+    }
 
     li {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 10px 8px;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--li-border);
       border-radius: 6px;
       cursor: grab;
-      transition: background 0.15s, opacity 0.2s;
       border-left: 4px solid transparent;
+      animation: slideIn 0.25s ease;
+      transition: background 0.15s, opacity 0.2s;
     }
-    li:hover { background: #f8f9ff; }
+    li:hover { background: var(--li-hover); }
     li.dragging { opacity: 0.4; cursor: grabbing; }
-    li.drag-over { background: #e8f0fe; border-top: 2px solid #4f8ef7; }
+    li.drag-over { background: var(--drag-over); border-top: 2px solid var(--btn-primary); }
+    li.removing { animation: slideOut 0.3s ease forwards; }
 
-    /* 優先度の左ボーダー色 */
     li.priority-high   { border-left-color: #e74c3c; }
     li.priority-medium { border-left-color: #f39c12; }
     li.priority-low    { border-left-color: #95a5a6; }
@@ -172,7 +285,7 @@
     li input[type="checkbox"] {
       width: 18px; height: 18px;
       cursor: pointer;
-      accent-color: #4f8ef7;
+      accent-color: var(--btn-primary);
       flex-shrink: 0;
     }
 
@@ -180,7 +293,7 @@
 
     .todo-text {
       font-size: 1rem;
-      color: #333;
+      color: var(--text);
       cursor: text;
       padding: 2px 4px;
       border-radius: 4px;
@@ -188,16 +301,18 @@
       display: inline-block;
       max-width: 100%;
     }
-    .todo-text:hover { background: #f0f4ff; }
-    li.done .todo-text { text-decoration: line-through; color: #aaa; }
+    .todo-text:hover { background: var(--li-hover); }
+    li.done .todo-text { text-decoration: line-through; color: var(--text-sub); }
 
     .todo-edit-input {
       font-size: 1rem;
       padding: 2px 6px;
-      border: 2px solid #4f8ef7;
+      border: 2px solid var(--input-focus);
       border-radius: 4px;
       outline: none;
       width: 100%;
+      background: var(--input-bg);
+      color: var(--text);
     }
 
     .todo-meta {
@@ -236,23 +351,21 @@
     .due-date.soon    { color: #f39c12; font-weight: bold; }
     .due-date.ok      { color: #27ae60; }
 
-    .drag-handle { color: #ccc; font-size: 1.1rem; cursor: grab; flex-shrink: 0; user-select: none; }
+    .drag-handle { color: var(--text-sub); font-size: 1.1rem; cursor: grab; flex-shrink: 0; user-select: none; }
 
     .del-btn {
       background: none; border: none; cursor: pointer;
-      color: #ccc; font-size: 1.2rem; padding: 0 4px;
+      color: var(--text-sub); font-size: 1.2rem; padding: 0 4px;
       line-height: 1; transition: color 0.2s; flex-shrink: 0;
     }
     .del-btn:hover { color: #e74c3c; }
 
     /* 0件 */
-    .empty-state { text-align: center; padding: 32px 0 16px; color: #bbb; }
-    .empty-state .empty-icon {
-      font-size: 3.5rem; display: block; margin-bottom: 12px;
-      animation: float 3s ease-in-out infinite;
-    }
+    .empty-state { text-align: center; padding: 32px 0 16px; color: var(--empty-color); }
+    .empty-state .empty-icon { font-size: 3.5rem; display: block; margin-bottom: 12px; animation: float 3s ease-in-out infinite; }
     .empty-state p { font-size: 0.95rem; margin: 4px 0; }
-    .empty-state .empty-sub { font-size: 0.82rem; color: #ccc; }
+    .empty-state .empty-sub { font-size: 0.82rem; }
+
     @keyframes float {
       0%, 100% { transform: translateY(0); }
       50%       { transform: translateY(-8px); }
@@ -261,7 +374,14 @@
 </head>
 <body>
   <div class="card">
-    <h1>📝 Todo リスト</h1>
+    <div class="header-row">
+      <h1>📝 Todo リスト</h1>
+      <div class="theme-switcher">
+        <button class="theme-btn active" onclick="setTheme('light')" id="theme-light">☀️ ライト</button>
+        <button class="theme-btn" onclick="setTheme('gradient')" id="theme-gradient">🌈 グラデ</button>
+        <button class="theme-btn" onclick="setTheme('dark')" id="theme-dark">🌙 ダーク</button>
+      </div>
+    </div>
 
     <div class="input-row">
       <input id="todoInput" type="text" placeholder="やることを入力..." />
@@ -310,6 +430,18 @@
 
     const CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
 
+    // テーマ管理
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('todo-theme', theme);
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('theme-' + theme).classList.add('active');
+    }
+
+    // 起動時にテーマを復元
+    const savedTheme = localStorage.getItem('todo-theme') || 'light';
+    setTheme(savedTheme);
+
     async function fetchTodos() {
       const res = await fetch("/api/todos");
       const data = await res.json();
@@ -330,6 +462,13 @@
 
     async function clearDone() {
       const doneTodos = allTodos.filter(t => t.done);
+      const list = document.getElementById("todoList");
+      // アニメーション付き削除
+      doneTodos.forEach(t => {
+        const el = list.querySelector(`[data-id="${t.id}"]`);
+        if (el) el.classList.add('removing');
+      });
+      await new Promise(r => setTimeout(r, 300));
       await Promise.all(doneTodos.map(t => fetch(`/api/todos/${t.id}`, { method: 'DELETE' })));
       fetchTodos();
     }
@@ -364,18 +503,16 @@
       const keyword = getSearchKeyword();
 
       const filtered = allTodos.filter(todo => {
-        // フィルター
         if (currentFilter === 'active') { if (todo.done) return false; }
         else if (currentFilter === 'done') { if (!todo.done) return false; }
         else if (CATEGORIES.includes(currentFilter)) { if (todo.category !== currentFilter) return false; }
-        // 検索
         if (keyword && !todo.text.toLowerCase().includes(keyword)) return false;
         return true;
       });
 
       if (filtered.length === 0) {
         const msgs = {
-          all:    { icon: keyword ? '🔍' : '🎉', msg: keyword ? `"${keyword}" に一致するTodoがありません` : 'Todoがありません', sub: keyword ? '別のキーワードを試してみてください' : '上の入力欄からタスクを追加しよう！' },
+          all:    { icon: keyword ? '🔍' : '🎉', msg: keyword ? `"${keyword}" に一致するTodoがありません` : 'Todoがありません', sub: keyword ? '別のキーワードを試してください' : '上の入力欄からタスクを追加しよう！' },
           active: { icon: '✅', msg: 'すべて完了しています！', sub: 'お疲れさまでした' },
           done:   { icon: '📭', msg: '完了済みのTodoがありません', sub: 'タスクをこなすと、ここに表示されます' },
         };
@@ -404,7 +541,7 @@
             <span class="todo-text" title="ダブルクリックして編集" ondblclick="startEdit(${todo.id}, this)">${todo.text}</span>
             <div class="todo-meta">${priorityHTML}${categoryHTML}${dueDateHTML}</div>
           </div>
-          <button class="del-btn" onclick="deleteTodo(${todo.id})" title="削除">✕</button>
+          <button class="del-btn" onclick="deleteTodoWithAnim(${todo.id}, this)" title="削除">✕</button>
         `;
 
         li.draggable = true;
@@ -427,6 +564,14 @@
 
         list.appendChild(li);
       });
+    }
+
+    async function deleteTodoWithAnim(id, btn) {
+      const li = btn.closest('li');
+      if (li) li.classList.add('removing');
+      await new Promise(r => setTimeout(r, 300));
+      await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      fetchTodos();
     }
 
     function startEdit(id, el) {
@@ -475,11 +620,6 @@
 
     async function toggleTodo(id, done) {
       await fetch(`/api/todos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done }) });
-      fetchTodos();
-    }
-
-    async function deleteTodo(id) {
-      await fetch(`/api/todos/${id}`, { method: "DELETE" });
       fetchTodos();
     }
 
