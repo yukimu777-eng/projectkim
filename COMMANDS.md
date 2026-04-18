@@ -10,6 +10,8 @@
 | メモ: 開発起動 | `npm run dev` | 開発用サーバーを起動する |
 | メモ: 通常起動 | `npm start` | 通常モードでサーバーを起動する |
 | メモ: 動作確認 | `http://localhost:3000/health` | ブラウザでヘルスチェックを確認する |
+| メモ: hello確認 | `http://localhost:3000/api/hello?name=Yuta` | 名前付きの挨拶APIを確認する |
+| メモ: time確認 | `http://localhost:3000/api/time` | 現在時刻APIを確認する |
 | メモ: 変更確認 | `git status` | 変更されたファイルを確認する |
 | メモ: 差分確認 | `git diff` | 変更内容の詳細を見る |
 | メモ: 追加（全体） | `git add .` | 変更ファイルをコミット対象にする |
@@ -23,3 +25,9 @@
 3. 実装したら `git status`
 4. `git add .`
 5. `git commit -m "作業内容"`
+
+## 私に送るだけでOKの例
+
+- `メモ: 開発起動`
+- `メモ: hello確認`
+- `メモ: 変更確認`

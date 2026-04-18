@@ -32,6 +32,9 @@
 
 - `http://localhost:3000/`
 - `http://localhost:3000/health`
+- `http://localhost:3000/api/hello`
+- `http://localhost:3000/api/hello?name=Yuta`
+- `http://localhost:3000/api/time`
 
 ## コマンド早見表
 
@@ -39,6 +42,6 @@
 
 ## 次のステップ
 
-- APIエンドポイントを追加する
+- APIエンドポイントを増やす（POST/PUT/DELETE）
 - 環境変数（PORTなど）を整理する
-- 最初のコミットを作る
+- GitHubへ接続してpushする
