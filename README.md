@@ -36,6 +36,7 @@
 - `http://localhost:3000/api/hello?name=Yuta`
 - `http://localhost:3000/api/time`
 - `http://localhost:3000/api/note`
+- `http://localhost:3000/api/todos`
 
 ### POST API確認（echo）
 
@@ -73,6 +74,32 @@ Invoke-RestMethod -Method PUT -Uri "http://localhost:3000/api/note" -ContentType
 
 ```powershell
 Invoke-RestMethod -Method DELETE -Uri "http://localhost:3000/api/note"
+```
+
+### Todo API確認（複数件データ）
+
+Todo一覧取得:
+
+```powershell
+Invoke-RestMethod -Method GET -Uri "http://localhost:3000/api/todos"
+```
+
+Todo作成:
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/todos" -ContentType "application/json" -Body '{"text":"buy milk"}'
+```
+
+Todo更新（id=1を完了にする例）:
+
+```powershell
+Invoke-RestMethod -Method PUT -Uri "http://localhost:3000/api/todos/1" -ContentType "application/json" -Body '{"done":true}'
+```
+
+Todo削除（id=1を削除する例）:
+
+```powershell
+Invoke-RestMethod -Method DELETE -Uri "http://localhost:3000/api/todos/1"
 ```
 
 ## コマンド早見表

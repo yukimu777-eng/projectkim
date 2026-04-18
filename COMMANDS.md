@@ -17,6 +17,10 @@
 | メモ: note取得 | `Invoke-RestMethod -Method GET -Uri "http://localhost:3000/api/note"` | 現在のノートを取得する |
 | メモ: note更新 | `Invoke-RestMethod -Method PUT -Uri "http://localhost:3000/api/note" -ContentType "application/json" -Body '{"note":"my first updated note"}'` | ノートを更新する |
 | メモ: note削除 | `Invoke-RestMethod -Method DELETE -Uri "http://localhost:3000/api/note"` | ノートを空にする |
+| メモ: todo一覧 | `Invoke-RestMethod -Method GET -Uri "http://localhost:3000/api/todos"` | Todo一覧を取得する |
+| メモ: todo追加 | `Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/todos" -ContentType "application/json" -Body '{"text":"buy milk"}'` | Todoを1件追加する |
+| メモ: todo完了 | `Invoke-RestMethod -Method PUT -Uri "http://localhost:3000/api/todos/1" -ContentType "application/json" -Body '{"done":true}'` | Todoを完了状態に更新する |
+| メモ: todo削除 | `Invoke-RestMethod -Method DELETE -Uri "http://localhost:3000/api/todos/1"` | Todoを削除する |
 | メモ: 変更確認 | `git status` | 変更されたファイルを確認する |
 | メモ: 差分確認 | `git diff` | 変更内容の詳細を見る |
 | メモ: 追加（全体） | `git add .` | 変更ファイルをコミット対象にする |
@@ -39,5 +43,6 @@
 - `メモ: echo確認`
 - `メモ: echo長文エラー確認`
 - `メモ: note更新`
+- `メモ: todo追加`
 - `メモ: 変更確認`
 - `メモ: Cowork開始`

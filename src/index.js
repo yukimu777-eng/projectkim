@@ -4,7 +4,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_ECHO_LENGTH = 100;
 const MAX_NOTE_LENGTH = 200;
+const MAX_TODO_TEXT_LENGTH = 120;
 let note = "sample note";
+let todos = [];
+let nextTodoId = 1;
 
 app.use(express.json());
 
@@ -103,6 +106,103 @@ app.delete("/api/note", (req, res) => {
   res.json({
     message: "note deleted",
     note,
+  });
+});
+
+app.get("/api/todos", (req, res) => {
+  res.json({
+    todos,
+  });
+});
+
+app.post("/api/todos", (req, res) => {
+  const { text } = req.body || {};
+
+  if (typeof text !== "string" || !text.trim()) {
+    return res.status(400).json({
+      error: "text is required",
+    });
+  }
+
+  const normalizedText = text.trim();
+
+  if (normalizedText.length > MAX_TODO_TEXT_LENGTH) {
+    return res.status(400).json({
+      error: `text must be ${MAX_TODO_TEXT_LENGTH} characters or fewer`,
+    });
+  }
+
+  const todo = {
+    id: nextTodoId,
+    text: normalizedText,
+    done: false,
+  };
+
+  nextTodoId += 1;
+  todos.push(todo);
+
+  res.status(201).json({
+    message: "todo created",
+    todo,
+  });
+});
+
+app.put("/api/todos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { text, done } = req.body || {};
+  const todo = todos.find((item) => item.id === id);
+
+  if (!todo) {
+    return res.status(404).json({
+      error: "todo not found",
+    });
+  }
+
+  if (text !== undefined) {
+    if (typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({
+        error: "text must be a non-empty string",
+      });
+    }
+
+    const normalizedText = text.trim();
+    if (normalizedText.length > MAX_TODO_TEXT_LENGTH) {
+      return res.status(400).json({
+        error: `text must be ${MAX_TODO_TEXT_LENGTH} characters or fewer`,
+      });
+    }
+    todo.text = normalizedText;
+  }
+
+  if (done !== undefined) {
+    if (typeof done !== "boolean") {
+      return res.status(400).json({
+        error: "done must be true or false",
+      });
+    }
+    todo.done = done;
+  }
+
+  res.json({
+    message: "todo updated",
+    todo,
+  });
+});
+
+app.delete("/api/todos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const index = todos.findIndex((item) => item.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({
+      error: "todo not found",
+    });
+  }
+
+  const [deletedTodo] = todos.splice(index, 1);
+  res.json({
+    message: "todo deleted",
+    todo: deletedTodo,
   });
 });
 
