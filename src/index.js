@@ -16,67 +16,64 @@ const VALID_CATEGORIES = ["仕事", "プライベート", "学習", "その他"]
 const DATA_DIR = path.join(__dirname, "..", "data");
 const TODOS_FILE_PATH = path.join(DATA_DIR, "todos.json");
 const MEMOS_FILE_PATH = path.join(DATA_DIR, "memos.json");
+const ACTIVITY_LOG_PATH = path.join(DATA_DIR, "activity_log.json");
 
 let note = "sample note";
 let todos = loadTodos();
 let nextTodoId = getNextTodoId(todos);
 let memos = loadMemos();
 let nextMemoId = getNextMemoId(memos);
+let activityLog = loadActivityLog();
 
-function loadTodos() {
+function loadJSON(filePath, fallback) {
   try {
-    if (!fs.existsSync(TODOS_FILE_PATH)) return [];
-    const raw = fs.readFileSync(TODOS_FILE_PATH, "utf8");
+    if (!fs.existsSync(filePath)) return fallback;
+    const raw = fs.readFileSync(filePath, "utf8");
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
     return parsed;
-  } catch (error) {
-    console.warn("Failed to load todos.");
-    return [];
+  } catch (e) {
+    console.warn("Failed to load " + filePath);
+    return fallback;
   }
 }
 
-function saveTodos() {
+function saveJSON(filePath, data) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(TODOS_FILE_PATH, JSON.stringify(todos, null, 2), "utf8");
-  } catch (error) {
-    console.error("Failed to save todos:", error.message);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+  } catch (e) {
+    console.error("Failed to save " + filePath, e.message);
   }
 }
 
-function loadMemos() {
-  try {
-    if (!fs.existsSync(MEMOS_FILE_PATH)) return [];
-    const raw = fs.readFileSync(MEMOS_FILE_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch (error) {
-    console.warn("Failed to load memos.");
-    return [];
-  }
+function loadTodos()      { return loadJSON(TODOS_FILE_PATH, []); }
+function saveTodos()      { saveJSON(TODOS_FILE_PATH, todos); }
+function loadMemos()      { return loadJSON(MEMOS_FILE_PATH, []); }
+function saveMemos()      { saveJSON(MEMOS_FILE_PATH, memos); }
+function loadActivityLog(){ return loadJSON(ACTIVITY_LOG_PATH, []); }
+function saveActivityLog(){ saveJSON(ACTIVITY_LOG_PATH, activityLog); }
+
+function getNextId(arr) {
+  if (arr.length === 0) return 1;
+  return arr.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
-function saveMemos() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(MEMOS_FILE_PATH, JSON.stringify(memos, null, 2), "utf8");
-  } catch (error) {
-    console.error("Failed to save memos:", error.message);
-  }
-}
+function getNextTodoId(t) { return getNextId(t); }
+function getNextMemoId(m) { return getNextId(m); }
 
-function getNextTodoId(currentTodos) {
-  if (currentTodos.length === 0) return 1;
-  const maxId = currentTodos.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
-  return maxId + 1;
-}
-
-function getNextMemoId(currentMemos) {
-  if (currentMemos.length === 0) return 1;
-  const maxId = currentMemos.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
-  return maxId + 1;
+// 活動ログに完了イベントを記録
+function recordCompletion(todoId, todoText) {
+  activityLog.push({
+    id: getNextId(activityLog),
+    todoId,
+    todoText,
+    completedAt: new Date().toISOString(),
+  });
+  // 90日より古いログは削除
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  activityLog = activityLog.filter(e => new Date(e.completedAt) >= cutoff);
+  saveActivityLog();
 }
 
 app.use(express.json());
@@ -84,110 +81,76 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("/", (req, res) => { res.json({ message: "Node.js API server is running" }); });
 app.get("/health", (req, res) => { res.json({ status: "ok" }); });
-
-app.get("/api/hello", (req, res) => {
-  const name = req.query.name || "world";
-  res.json({ message: `Hello, ${name}!` });
-});
-
-app.get("/api/time", (req, res) => { res.json({ now: new Date().toISOString() }); });
+app.get("/api/hello", (req, res) => { res.json({ message: `Hello, ${req.query.name || "world"}!` }); });
+app.get("/api/time",  (req, res) => { res.json({ now: new Date().toISOString() }); });
 
 app.post("/api/echo", (req, res) => {
   const { message } = req.body || {};
-  if (typeof message !== "string") return res.status(400).json({ error: "message is required" });
-  const normalizedMessage = message.trim();
-  if (!normalizedMessage) return res.status(400).json({ error: "message is required" });
-  if (normalizedMessage.length > MAX_ECHO_LENGTH) return res.status(400).json({ error: `message must be ${MAX_ECHO_LENGTH} characters or fewer` });
-  res.json({ echo: normalizedMessage });
+  if (typeof message !== "string" || !message.trim()) return res.status(400).json({ error: "message is required" });
+  const m = message.trim();
+  if (m.length > MAX_ECHO_LENGTH) return res.status(400).json({ error: `message must be ${MAX_ECHO_LENGTH} characters or fewer` });
+  res.json({ echo: m });
 });
 
-app.get("/api/note", (req, res) => { res.json({ note }); });
-app.put("/api/note", (req, res) => {
-  const { note: nextNote } = req.body || {};
-  if (typeof nextNote !== "string") return res.status(400).json({ error: "note is required" });
-  const normalizedNote = nextNote.trim();
-  if (!normalizedNote) return res.status(400).json({ error: "note is required" });
-  if (normalizedNote.length > MAX_NOTE_LENGTH) return res.status(400).json({ error: `note must be ${MAX_NOTE_LENGTH} characters or fewer` });
-  note = normalizedNote;
-  res.json({ message: "note updated", note });
+app.get("/api/note",    (req, res) => { res.json({ note }); });
+app.put("/api/note",    (req, res) => {
+  const { note: n } = req.body || {};
+  if (typeof n !== "string" || !n.trim()) return res.status(400).json({ error: "note is required" });
+  const norm = n.trim();
+  if (norm.length > MAX_NOTE_LENGTH) return res.status(400).json({ error: `note must be ${MAX_NOTE_LENGTH} chars or fewer` });
+  note = norm; res.json({ message: "note updated", note });
 });
 app.delete("/api/note", (req, res) => { note = ""; res.json({ message: "note deleted", note }); });
 
-// ===== メモ（複数ノート）API =====
+// ===== メモAPI =====
 app.get("/api/memos", (req, res) => { res.json({ memos }); });
-
 app.post("/api/memos", (req, res) => {
   const { title, content } = req.body || {};
-  if (typeof content !== "string" || !content.trim()) {
-    return res.status(400).json({ error: "content is required" });
-  }
-  const normalizedContent = content.trim();
-  if (normalizedContent.length > MAX_MEMO_CONTENT_LENGTH) {
-    return res.status(400).json({ error: `content must be ${MAX_MEMO_CONTENT_LENGTH} characters or fewer` });
-  }
-  const normalizedTitle = typeof title === "string" ? title.trim().slice(0, MAX_MEMO_TITLE_LENGTH) : "";
-  const memo = {
-    id: nextMemoId,
-    title: normalizedTitle || null,
-    content: normalizedContent,
-    createdAt: new Date().toISOString(),
-  };
-  nextMemoId += 1;
-  memos.unshift(memo);
-  saveMemos();
+  if (typeof content !== "string" || !content.trim()) return res.status(400).json({ error: "content is required" });
+  const c = content.trim();
+  if (c.length > MAX_MEMO_CONTENT_LENGTH) return res.status(400).json({ error: `content must be ${MAX_MEMO_CONTENT_LENGTH} chars or fewer` });
+  const t = typeof title === "string" ? title.trim().slice(0, MAX_MEMO_TITLE_LENGTH) : "";
+  const memo = { id: nextMemoId++, title: t || null, content: c, createdAt: new Date().toISOString() };
+  memos.unshift(memo); saveMemos();
   res.status(201).json({ message: "memo created", memo });
 });
-
 app.put("/api/memos/:id", (req, res) => {
   const id = Number(req.params.id);
-  const { title, content } = req.body || {};
-  const memo = memos.find((m) => m.id === id);
+  const memo = memos.find(m => m.id === id);
   if (!memo) return res.status(404).json({ error: "memo not found" });
+  const { title, content } = req.body || {};
   if (content !== undefined) {
-    if (typeof content !== "string" || !content.trim()) return res.status(400).json({ error: "content must be non-empty" });
-    const normalizedContent = content.trim();
-    if (normalizedContent.length > MAX_MEMO_CONTENT_LENGTH) return res.status(400).json({ error: `content must be ${MAX_MEMO_CONTENT_LENGTH} characters or fewer` });
-    memo.content = normalizedContent;
+    const c = typeof content === "string" ? content.trim() : "";
+    if (!c) return res.status(400).json({ error: "content must be non-empty" });
+    if (c.length > MAX_MEMO_CONTENT_LENGTH) return res.status(400).json({ error: "content too long" });
+    memo.content = c;
   }
-  if (title !== undefined) {
-    memo.title = typeof title === "string" ? title.trim().slice(0, MAX_MEMO_TITLE_LENGTH) || null : null;
-  }
-  memo.updatedAt = new Date().toISOString();
-  saveMemos();
+  if (title !== undefined) memo.title = typeof title === "string" ? title.trim().slice(0, MAX_MEMO_TITLE_LENGTH) || null : null;
+  memo.updatedAt = new Date().toISOString(); saveMemos();
   res.json({ message: "memo updated", memo });
 });
-
 app.delete("/api/memos/:id", (req, res) => {
   const id = Number(req.params.id);
-  const index = memos.findIndex((m) => m.id === id);
+  const index = memos.findIndex(m => m.id === id);
   if (index === -1) return res.status(404).json({ error: "memo not found" });
-  const [deleted] = memos.splice(index, 1);
-  saveMemos();
+  const [deleted] = memos.splice(index, 1); saveMemos();
   res.json({ message: "memo deleted", memo: deleted });
 });
 
+// ===== 活動ログAPI =====
+app.get("/api/activity-log", (req, res) => { res.json({ activityLog }); });
+
 // ===== Todo API =====
 app.get("/api/todos", (req, res) => { res.json({ todos }); });
-
 app.post("/api/todos", (req, res) => {
   const { text, dueDate, priority, category } = req.body || {};
   if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text is required" });
-  const normalizedText = text.trim();
-  if (normalizedText.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: `text must be ${MAX_TODO_TEXT_LENGTH} characters or fewer` });
+  const t = text.trim();
+  if (t.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: "text too long" });
   if (priority && !VALID_PRIORITIES.includes(priority)) return res.status(400).json({ error: "invalid priority" });
   if (category && !VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: "invalid category" });
-  const todo = {
-    id: nextTodoId,
-    text: normalizedText,
-    done: false,
-    dueDate: dueDate || null,
-    priority: priority || "medium",
-    category: category || null,
-    order: todos.length,
-  };
-  nextTodoId += 1;
-  todos.push(todo);
-  saveTodos();
+  const todo = { id: nextTodoId++, text: t, done: false, dueDate: dueDate || null, priority: priority || "medium", category: category || null, order: todos.length, createdAt: new Date().toISOString(), completedAt: null };
+  todos.push(todo); saveTodos();
   res.status(201).json({ message: "todo created", todo });
 });
 
@@ -197,29 +160,40 @@ app.put("/api/todos/reorder", (req, res) => {
   const reordered = [];
   for (let i = 0; i < orderedIds.length; i++) {
     const id = Number(orderedIds[i]);
-    const todo = todos.find((t) => t.id === id);
+    const todo = todos.find(t => t.id === id);
     if (!todo) return res.status(404).json({ error: `todo id ${id} not found` });
     reordered.push({ ...todo, order: i });
   }
-  todos = reordered;
-  saveTodos();
+  todos = reordered; saveTodos();
   res.json({ message: "todos reordered", todos });
 });
 
 app.put("/api/todos/:id", (req, res) => {
   const id = Number(req.params.id);
   const { text, done, dueDate, priority, category } = req.body || {};
-  const todo = todos.find((item) => item.id === id);
+  const todo = todos.find(item => item.id === id);
   if (!todo) return res.status(404).json({ error: "todo not found" });
+
+  const wasDone = todo.done;
+
   if (text !== undefined) {
-    if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text must be a non-empty string" });
-    const normalizedText = text.trim();
-    if (normalizedText.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: `text must be ${MAX_TODO_TEXT_LENGTH} characters or fewer` });
-    todo.text = normalizedText;
+    if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text must be non-empty" });
+    const t = text.trim();
+    if (t.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: "text too long" });
+    todo.text = t;
   }
   if (done !== undefined) {
-    if (typeof done !== "boolean") return res.status(400).json({ error: "done must be true or false" });
+    if (typeof done !== "boolean") return res.status(400).json({ error: "done must be boolean" });
     todo.done = done;
+    // 完了に変わった瞬間に時刻を記録
+    if (!wasDone && done) {
+      todo.completedAt = new Date().toISOString();
+      recordCompletion(todo.id, todo.text);
+    }
+    // 未完了に戻したら completedAt をクリア
+    if (wasDone && !done) {
+      todo.completedAt = null;
+    }
   }
   if (dueDate !== undefined) todo.dueDate = dueDate || null;
   if (priority !== undefined) {
@@ -236,11 +210,10 @@ app.put("/api/todos/:id", (req, res) => {
 
 app.delete("/api/todos/:id", (req, res) => {
   const id = Number(req.params.id);
-  const index = todos.findIndex((item) => item.id === id);
+  const index = todos.findIndex(item => item.id === id);
   if (index === -1) return res.status(404).json({ error: "todo not found" });
-  const [deletedTodo] = todos.splice(index, 1);
-  saveTodos();
-  res.json({ message: "todo deleted", todo: deletedTodo });
+  const [deleted] = todos.splice(index, 1); saveTodos();
+  res.json({ message: "todo deleted", todo: deleted });
 });
 
 app.listen(PORT, () => { console.log(`API server listening on http://localhost:${PORT}`); });
