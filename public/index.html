@@ -593,6 +593,147 @@
       font-size: 0.88rem;
       padding: 16px 0;
     }
+
+    /* ===== 活動ログセクション ===== */
+    .activity-section {
+      margin-top: 28px;
+      border-top: 1px solid var(--li-border);
+      padding-top: 20px;
+    }
+
+    .activity-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .activity-stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .activity-stat-card {
+      background: var(--li-hover);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .activity-stat-card .a-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+
+    .activity-stat-card .a-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .activity-stat-card .a-unit {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-left: 2px;
+    }
+
+    /* 時間別バーチャート */
+    .chart-title {
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 80px;
+      margin-bottom: 4px;
+    }
+
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+
+    .bar-fill {
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #818cf8, #4f8ef7);
+      transition: height 0.5s cubic-bezier(.4,0,.2,1);
+      min-height: 2px;
+    }
+
+    .bar-label {
+      font-size: 0.65rem;
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    .bar-count {
+      font-size: 0.65rem;
+      color: var(--text-sub);
+      height: 14px;
+    }
+
+    /* 週別チャート */
+    .week-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 60px;
+      margin-bottom: 4px;
+      margin-top: 16px;
+    }
+
+    /* 直近の完了ログ */
+    .recent-log {
+      margin-top: 14px;
+    }
+
+    .log-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--li-border);
+      font-size: 0.84rem;
+      color: var(--text);
+    }
+
+    .log-time {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .log-text {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .log-empty {
+      text-align: center;
+      color: var(--empty-color);
+      font-size: 0.85rem;
+      padding: 12px 0;
+    }
   </style>
 </head>
 <body>
@@ -702,6 +843,44 @@
       </div>
       <div class="memo-list" id="memoList"></div>
     </div>
+
+    <!-- 活動ログセクション -->
+    <div class="activity-section">
+      <div class="activity-title">📈 活動ログ</div>
+
+      <div class="activity-stats-row">
+        <div class="activity-stat-card">
+          <div class="a-label">🎯 今日の完了</div>
+          <div class="a-value" id="act-today">0<span class="a-unit">件</span></div>
+        </div>
+        <div class="activity-stat-card">
+          <div class="a-label">📅 今週の完了</div>
+          <div class="a-value" id="act-week">0<span class="a-unit">件</span></div>
+        </div>
+        <div class="activity-stat-card">
+          <div class="a-label">🏆 累計完了</div>
+          <div class="a-value" id="act-total">0<span class="a-unit">件</span></div>
+        </div>
+        <div class="activity-stat-card">
+          <div class="a-label">🔥 最高記録/日</div>
+          <div class="a-value" id="act-best">0<span class="a-unit">件</span></div>
+        </div>
+      </div>
+
+      <!-- 今日の時間別バーチャート -->
+      <div class="chart-title">🕐 今日の完了時間帯</div>
+      <div class="bar-chart" id="hourly-chart"></div>
+
+      <!-- 過去7日チャート -->
+      <div class="chart-title">📆 過去7日間の完了数</div>
+      <div class="week-chart" id="weekly-chart"></div>
+
+      <!-- 直近の完了ログ -->
+      <div class="recent-log">
+        <div class="chart-title">✅ 直近の完了履歴</div>
+        <div id="recent-log-list"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -723,6 +902,107 @@
     const savedTheme = localStorage.getItem('todo-theme') || 'light';
     setTheme(savedTheme);
 
+
+
+    // ===== 活動ログ =====
+    async function fetchActivityLog() {
+      const res = await fetch("/api/activity-log");
+      const data = await res.json();
+      renderActivityLog(data.activityLog);
+    }
+
+    function renderActivityLog(log) {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+
+      // 今週の月曜日を計算
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      weekStart.setHours(0, 0, 0, 0);
+
+      const todayLogs  = log.filter(e => e.completedAt.startsWith(todayStr));
+      const weekLogs   = log.filter(e => new Date(e.completedAt) >= weekStart);
+
+      // 統計
+      document.getElementById('act-today').innerHTML = `${todayLogs.length}<span class="a-unit">件</span>`;
+      document.getElementById('act-week').innerHTML  = `${weekLogs.length}<span class="a-unit">件</span>`;
+      document.getElementById('act-total').innerHTML = `${log.length}<span class="a-unit">件</span>`;
+
+      // 日別件数で最大を計算
+      const dayCounts = {};
+      log.forEach(e => {
+        const d = e.completedAt.split('T')[0];
+        dayCounts[d] = (dayCounts[d] || 0) + 1;
+      });
+      const best = Math.max(0, ...Object.values(dayCounts));
+      document.getElementById('act-best').innerHTML = `${best}<span class="a-unit">件</span>`;
+
+      // 時間別バーチャート（今日）
+      const hourCounts = Array(24).fill(0);
+      todayLogs.forEach(e => {
+        const h = new Date(e.completedAt).getHours();
+        hourCounts[h]++;
+      });
+      const maxHour = Math.max(1, ...hourCounts);
+      const hourChart = document.getElementById('hourly-chart');
+      hourChart.innerHTML = '';
+      // 6〜23時 + 0-5時をまとめて表示（代表的な時間帯のみ）
+      const displayHours = [0,3,6,9,12,15,18,21];
+      displayHours.forEach(h => {
+        // 3時間合計
+        const count = hourCounts[h] + (hourCounts[h+1]||0) + (hourCounts[h+2]||0);
+        const pct = Math.round((count / (maxHour * 3)) * 100);
+        const col = document.createElement('div');
+        col.className = 'bar-col';
+        col.innerHTML = `
+          <span class="bar-count">${count > 0 ? count : ''}</span>
+          <div class="bar-fill" style="height:${Math.max(2, pct)}%"></div>
+          <span class="bar-label">${h}時</span>
+        `;
+        hourChart.appendChild(col);
+      });
+
+      // 過去7日チャート
+      const days7 = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const str = d.toISOString().split('T')[0];
+        days7.push({ str, label: (d.getMonth()+1) + '/' + d.getDate(), count: dayCounts[str] || 0 });
+      }
+      const maxDay = Math.max(1, ...days7.map(d => d.count));
+      const weekChart = document.getElementById('weekly-chart');
+      weekChart.innerHTML = '';
+      days7.forEach(d => {
+        const pct = Math.round((d.count / maxDay) * 100);
+        const isToday = d.str === todayStr;
+        const col = document.createElement('div');
+        col.className = 'bar-col';
+        col.innerHTML = `
+          <span class="bar-count">${d.count > 0 ? d.count : ''}</span>
+          <div class="bar-fill" style="height:${Math.max(2, pct)}%; background:${isToday ? 'linear-gradient(180deg,#f093fb,#f5576c)' : 'linear-gradient(180deg,#818cf8,#4f8ef7)'}"></div>
+          <span class="bar-label" style="${isToday ? 'font-weight:700;color:var(--text)' : ''}">${d.label}</span>
+        `;
+        weekChart.appendChild(col);
+      });
+
+      // 直近10件の完了ログ
+      const recentList = document.getElementById('recent-log-list');
+      const recent = [...log].reverse().slice(0, 10);
+      if (recent.length === 0) {
+        recentList.innerHTML = '<div class="log-empty">まだ完了したタスクがありません</div>';
+        return;
+      }
+      recentList.innerHTML = '';
+      recent.forEach(e => {
+        const t = new Date(e.completedAt);
+        const timeStr = t.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) + ' ' + t.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerHTML = `<span class="log-time">${timeStr}</span><span class="log-text">✅ ${e.todoText}</span>`;
+        recentList.appendChild(item);
+      });
+    }
 
     // ===== メモ機能 =====
     async function fetchMemos() {
@@ -1014,6 +1294,7 @@
     async function toggleTodo(id, done) {
       await fetch(`/api/todos/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ done }) });
       fetchTodos();
+      fetchActivityLog();
     }
 
     document.getElementById("todoInput").addEventListener("keydown", function(e) {
@@ -1022,6 +1303,7 @@
 
     fetchTodos();
     fetchMemos();
+    fetchActivityLog();
   </script>
 </body>
 </html>
