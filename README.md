@@ -36,6 +36,16 @@
 - `http://localhost:3000/api/hello?name=Yuta`
 - `http://localhost:3000/api/time`
 
+### POST API確認（echo）
+
+PowerShellで以下を実行すると、`POST /api/echo` の動作を確認できます。
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/echo" -ContentType "application/json" -Body '{"message":"hello"}'
+```
+
+`message` を空で送ると、`400` エラー（`message is required`）になります。
+
 ## コマンド早見表
 
 - `COMMANDS.md` に、初心者向けのコマンド一覧と実行順をまとめています。

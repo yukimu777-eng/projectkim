@@ -30,6 +30,20 @@ app.get("/api/time", (req, res) => {
   });
 });
 
+app.post("/api/echo", (req, res) => {
+  const { message } = req.body || {};
+
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({
+      error: "message is required",
+    });
+  }
+
+  res.json({
+    echo: message.trim(),
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`API server listening on http://localhost:${PORT}`);
 });
