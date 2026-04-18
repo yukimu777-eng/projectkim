@@ -370,6 +370,106 @@
       0%, 100% { transform: translateY(0); }
       50%       { transform: translateY(-8px); }
     }
+
+    /* ===== サマリセクション ===== */
+    .summary-section {
+      margin-top: 28px;
+      border-top: 1px solid var(--li-border);
+      padding-top: 20px;
+    }
+
+    .summary-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      background: var(--li-hover);
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      transition: background 0.3s;
+    }
+
+    .summary-card .s-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+
+    .summary-card .s-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .summary-card .s-value.danger { color: #e74c3c; }
+    .summary-card .s-value.warn   { color: #f39c12; }
+    .summary-card .s-value.good   { color: #27ae60; }
+
+    /* 完了率プログレスバー */
+    .progress-wrap {
+      margin-bottom: 16px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+
+    .progress-bar-bg {
+      background: var(--border);
+      border-radius: 100px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 100px;
+      background: linear-gradient(90deg, #4f8ef7, #a78bfa);
+      transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* カテゴリ内訳 */
+    .category-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .cat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: var(--li-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+    }
+
+    .cat-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -421,6 +521,53 @@
     </div>
 
     <ul id="todoList"></ul>
+
+    <!-- サマリセクション -->
+    <div class="summary-section">
+      <div class="summary-title">📊 サマリ</div>
+
+      <!-- 完了率プログレスバー -->
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>完了率</span>
+          <span id="summary-rate">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="summary-progress" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- 統計カード -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="s-label">📋 総タスク数</div>
+          <div class="s-value" id="s-total">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">✅ 完了済み</div>
+          <div class="s-value good" id="s-done">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">🔥 今日が期限</div>
+          <div class="s-value warn" id="s-today">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">⚠ 期限切れ</div>
+          <div class="s-value danger" id="s-overdue">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">🔴 優先度: 高</div>
+          <div class="s-value danger" id="s-high">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">📅 未完了</div>
+          <div class="s-value" id="s-active">0</div>
+        </div>
+      </div>
+
+      <!-- カテゴリ内訳 -->
+      <div id="category-breakdown" class="category-breakdown"></div>
+    </div>
   </div>
 
   <script>
@@ -448,6 +595,47 @@
       allTodos = data.todos;
       renderTodos();
       updateStats();
+      updateSummary();
+    }
+
+    
+    function updateSummary() {
+      const total = allTodos.length;
+      const done = allTodos.filter(t => t.done).length;
+      const active = total - done;
+      const rate = total === 0 ? 0 : Math.round((done / total) * 100);
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      const todayDue = allTodos.filter(t => !t.done && t.dueDate === todayStr).length;
+      const overdue  = allTodos.filter(t => !t.done && t.dueDate && new Date(t.dueDate) < today).length;
+      const highPri  = allTodos.filter(t => !t.done && t.priority === 'high').length;
+
+      document.getElementById('summary-rate').textContent = rate + '%';
+      document.getElementById('summary-progress').style.width = rate + '%';
+      document.getElementById('s-total').textContent  = total;
+      document.getElementById('s-done').textContent   = done;
+      document.getElementById('s-today').textContent  = todayDue;
+      document.getElementById('s-overdue').textContent = overdue;
+      document.getElementById('s-high').textContent   = highPri;
+      document.getElementById('s-active').textContent = active;
+
+      // カテゴリ内訳
+      const catColors = { '仕事': '#3b82f6', 'プライベート': '#ec4899', '学習': '#10b981', 'その他': '#9ca3af' };
+      const catCounts = {};
+      allTodos.forEach(t => { if (t.category) catCounts[t.category] = (catCounts[t.category] || 0) + 1; });
+      const breakdown = document.getElementById('category-breakdown');
+      breakdown.innerHTML = '';
+      Object.entries(catCounts).forEach(([cat, count]) => {
+        const item = document.createElement('div');
+        item.className = 'cat-item';
+        item.innerHTML = `<span class="cat-dot" style="background:${catColors[cat] || '#aaa'}"></span>${cat}: ${count}件`;
+        breakdown.appendChild(item);
+      });
+      if (Object.keys(catCounts).length === 0) {
+        breakdown.innerHTML = '<span style="font-size:0.82rem;color:var(--text-sub)">カテゴリ未設定のTodoのみです</span>';
+      }
     }
 
     function updateStats() {
