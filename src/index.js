@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
 
 const app = express();
@@ -5,9 +7,48 @@ const PORT = process.env.PORT || 3000;
 const MAX_ECHO_LENGTH = 100;
 const MAX_NOTE_LENGTH = 200;
 const MAX_TODO_TEXT_LENGTH = 120;
+const DATA_DIR = path.join(__dirname, "..", "data");
+const TODOS_FILE_PATH = path.join(DATA_DIR, "todos.json");
 let note = "sample note";
-let todos = [];
-let nextTodoId = 1;
+let todos = loadTodos();
+let nextTodoId = getNextTodoId(todos);
+
+function loadTodos() {
+  try {
+    if (!fs.existsSync(TODOS_FILE_PATH)) {
+      return [];
+    }
+
+    const raw = fs.readFileSync(TODOS_FILE_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed;
+  } catch (error) {
+    console.warn("Failed to load todos from file. Starting with empty list.");
+    return [];
+  }
+}
+
+function saveTodos() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(TODOS_FILE_PATH, JSON.stringify(todos, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to save todos:", error.message);
+  }
+}
+
+function getNextTodoId(currentTodos) {
+  if (currentTodos.length === 0) {
+    return 1;
+  }
+  const maxId = currentTodos.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
+  return maxId + 1;
+}
 
 app.use(express.json());
 
@@ -140,6 +181,7 @@ app.post("/api/todos", (req, res) => {
 
   nextTodoId += 1;
   todos.push(todo);
+  saveTodos();
 
   res.status(201).json({
     message: "todo created",
@@ -182,6 +224,7 @@ app.put("/api/todos/:id", (req, res) => {
     }
     todo.done = done;
   }
+  saveTodos();
 
   res.json({
     message: "todo updated",
@@ -200,6 +243,7 @@ app.delete("/api/todos/:id", (req, res) => {
   }
 
   const [deletedTodo] = todos.splice(index, 1);
+  saveTodos();
   res.json({
     message: "todo deleted",
     todo: deletedTodo,

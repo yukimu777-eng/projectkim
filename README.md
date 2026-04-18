@@ -102,6 +102,8 @@ Todo削除（id=1を削除する例）:
 Invoke-RestMethod -Method DELETE -Uri "http://localhost:3000/api/todos/1"
 ```
 
+補足: Todoデータは `data/todos.json` に自動保存されるため、サーバー再起動後も残ります。
+
 ## コマンド早見表
 
 - `COMMANDS.md` に、初心者向けのコマンド一覧と実行順をまとめています。

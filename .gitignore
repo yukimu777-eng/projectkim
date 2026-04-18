@@ -21,6 +21,7 @@ pnpm-debug.log*
 node_modules/
 dist/
 build/
+data/*.json
 
 # Python
 __pycache__/
