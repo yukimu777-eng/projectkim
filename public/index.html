@@ -83,15 +83,38 @@
       background: #3a7ae8;
     }
 
+    .stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      min-height: 24px;
+    }
+
     .stats {
       font-size: 0.85rem;
       color: #888;
-      margin-bottom: 12px;
     }
 
     .stats span {
       color: #4f8ef7;
       font-weight: bold;
+    }
+
+    .clear-btn {
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      background: #fff;
+      color: #e74c3c;
+      border: 1.5px solid #e74c3c;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-btn:hover {
+      background: #e74c3c;
+      color: #fff;
     }
 
     .filter-row {
@@ -169,9 +192,16 @@
     .todo-text {
       font-size: 1rem;
       color: #333;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.15s;
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .todo-text:hover {
+      background: #f0f4ff;
     }
 
     li.done .todo-text {
@@ -179,24 +209,23 @@
       color: #aaa;
     }
 
+    .todo-edit-input {
+      font-size: 1rem;
+      padding: 2px 6px;
+      border: 2px solid #4f8ef7;
+      border-radius: 4px;
+      outline: none;
+      width: 100%;
+    }
+
     .due-date {
       font-size: 0.75rem;
       margin-top: 2px;
     }
 
-    .due-date.overdue {
-      color: #e74c3c;
-      font-weight: bold;
-    }
-
-    .due-date.soon {
-      color: #f39c12;
-      font-weight: bold;
-    }
-
-    .due-date.ok {
-      color: #27ae60;
-    }
+    .due-date.overdue { color: #e74c3c; font-weight: bold; }
+    .due-date.soon    { color: #f39c12; font-weight: bold; }
+    .due-date.ok      { color: #27ae60; }
 
     .drag-handle {
       color: #ccc;
@@ -218,15 +247,35 @@
       flex-shrink: 0;
     }
 
-    .del-btn:hover {
-      color: #e74c3c;
+    .del-btn:hover { color: #e74c3c; }
+
+    /* 0件イラスト */
+    .empty-state {
+      text-align: center;
+      padding: 32px 0 16px;
+      color: #bbb;
     }
 
-    .empty-msg {
-      text-align: center;
-      color: #bbb;
+    .empty-state .empty-icon {
+      font-size: 3.5rem;
+      display: block;
+      margin-bottom: 12px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .empty-state p {
       font-size: 0.95rem;
-      padding: 24px 0;
+      margin: 4px 0;
+    }
+
+    .empty-state .empty-sub {
+      font-size: 0.82rem;
+      color: #ccc;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
     }
   </style>
 </head>
@@ -238,7 +287,10 @@
       <input id="dueDateInput" type="date" />
       <button onclick="addTodo()">追加</button>
     </div>
-    <div class="stats" id="stats"></div>
+    <div class="stats-row">
+      <div class="stats" id="stats"></div>
+      <button class="clear-btn" id="clearBtn" onclick="clearDone()" style="display:none">完了済みを削除</button>
+    </div>
     <div class="filter-row">
       <button id="filter-all" class="active" onclick="setFilter('all')">すべて</button>
       <button id="filter-active" onclick="setFilter('active')">未完了</button>
@@ -264,11 +316,23 @@
       const total = allTodos.length;
       const done = allTodos.filter(t => t.done).length;
       const statsEl = document.getElementById("stats");
+      const clearBtn = document.getElementById("clearBtn");
+
       if (total === 0) {
         statsEl.textContent = '';
+        clearBtn.style.display = 'none';
         return;
       }
       statsEl.innerHTML = `<span>${done}</span> / ${total} 件完了`;
+      clearBtn.style.display = done > 0 ? 'inline-block' : 'none';
+    }
+
+    async function clearDone() {
+      const doneTodos = allTodos.filter(t => t.done);
+      await Promise.all(doneTodos.map(t =>
+        fetch(`/api/todos/${t.id}`, { method: 'DELETE' })
+      ));
+      fetchTodos();
     }
 
     function formatDueDate(dateStr) {
@@ -278,9 +342,9 @@
       const due = new Date(dateStr);
       const diff = Math.floor((due - today) / (1000 * 60 * 60 * 24));
       const label = due.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
-      if (diff < 0) return { label: `⚠ ${label} 期限切れ`, cls: 'overdue' };
+      if (diff < 0)  return { label: `⚠ ${label} 期限切れ`, cls: 'overdue' };
       if (diff === 0) return { label: `🔥 今日が期限`, cls: 'soon' };
-      if (diff <= 3) return { label: `⏰ ${label} まで${diff}日`, cls: 'soon' };
+      if (diff <= 3)  return { label: `⏰ ${label} まで${diff}日`, cls: 'soon' };
       return { label: `📅 ${label}`, cls: 'ok' };
     }
 
@@ -302,7 +366,19 @@
       });
 
       if (filtered.length === 0) {
-        list.innerHTML = '<p class="empty-msg">Todoがありません</p>';
+        const emptyMessages = {
+          all:    { icon: '🎉', msg: 'Todoがありません', sub: '上の入力欄からタスクを追加しよう！' },
+          active: { icon: '✅', msg: 'すべて完了しています！', sub: 'お疲れさまでした' },
+          done:   { icon: '📭', msg: '完了済みのTodoがありません', sub: 'タスクをこなすと、ここに表示されます' },
+        };
+        const e = emptyMessages[currentFilter];
+        list.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-icon">${e.icon}</span>
+            <p>${e.msg}</p>
+            <p class="empty-sub">${e.sub}</p>
+          </div>
+        `;
         return;
       }
 
@@ -312,15 +388,13 @@
         if (todo.done) li.classList.add("done");
 
         const due = formatDueDate(todo.dueDate);
-        const dueDateHTML = due
-          ? `<div class="due-date ${due.cls}">${due.label}</div>`
-          : '';
+        const dueDateHTML = due ? `<div class="due-date ${due.cls}">${due.label}</div>` : '';
 
         li.innerHTML = `
           <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
           <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleTodo(${todo.id}, this.checked)" />
           <div class="todo-body">
-            <div class="todo-text">${todo.text}</div>
+            <span class="todo-text" title="クリックして編集" ondblclick="startEdit(${todo.id}, this)">${todo.text}</span>
             ${dueDateHTML}
           </div>
           <button class="del-btn" onclick="deleteTodo(${todo.id})" title="削除">✕</button>
@@ -347,19 +421,15 @@
           e.preventDefault();
           li.classList.remove('drag-over');
           if (dragSrcId === todo.id) return;
-
-          // 並び替えてAPIへ送信
           const srcIndex = allTodos.findIndex(t => t.id === dragSrcId);
           const dstIndex = allTodos.findIndex(t => t.id === todo.id);
           if (srcIndex === -1 || dstIndex === -1) return;
-
           const reordered = [...allTodos];
           const [moved] = reordered.splice(srcIndex, 1);
           reordered.splice(dstIndex, 0, moved);
           allTodos = reordered;
           renderTodos();
           updateStats();
-
           await fetch('/api/todos/reorder', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -369,6 +439,51 @@
         });
 
         list.appendChild(li);
+      });
+    }
+
+    function startEdit(id, el) {
+      const currentText = el.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'todo-edit-input';
+      input.value = currentText;
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+
+      async function save() {
+        const newText = input.value.trim();
+        if (newText && newText !== currentText) {
+          await fetch(`/api/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: newText })
+          });
+          fetchTodos();
+        } else {
+          // 変更なしor空ならもとに戻す
+          const span = document.createElement('span');
+          span.className = 'todo-text';
+          span.title = 'クリックして編集';
+          span.textContent = currentText;
+          span.ondblclick = () => startEdit(id, span);
+          input.replaceWith(span);
+        }
+      }
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') {
+          input.removeEventListener('blur', save);
+          const span = document.createElement('span');
+          span.className = 'todo-text';
+          span.title = 'クリックして編集';
+          span.textContent = currentText;
+          span.ondblclick = () => startEdit(id, span);
+          input.replaceWith(span);
+        }
       });
     }
 
