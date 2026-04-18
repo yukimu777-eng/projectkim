@@ -3,6 +3,8 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_ECHO_LENGTH = 100;
+const MAX_NOTE_LENGTH = 200;
+let note = "sample note";
 
 app.use(express.json());
 
@@ -56,6 +58,51 @@ app.post("/api/echo", (req, res) => {
 
   res.json({
     echo: normalizedMessage,
+  });
+});
+
+app.get("/api/note", (req, res) => {
+  res.json({
+    note,
+  });
+});
+
+app.put("/api/note", (req, res) => {
+  const { note: nextNote } = req.body || {};
+
+  if (typeof nextNote !== "string") {
+    return res.status(400).json({
+      error: "note is required",
+    });
+  }
+
+  const normalizedNote = nextNote.trim();
+
+  if (!normalizedNote) {
+    return res.status(400).json({
+      error: "note is required",
+    });
+  }
+
+  if (normalizedNote.length > MAX_NOTE_LENGTH) {
+    return res.status(400).json({
+      error: `note must be ${MAX_NOTE_LENGTH} characters or fewer`,
+    });
+  }
+
+  note = normalizedNote;
+
+  res.json({
+    message: "note updated",
+    note,
+  });
+});
+
+app.delete("/api/note", (req, res) => {
+  note = "";
+  res.json({
+    message: "note deleted",
+    note,
   });
 });
 
