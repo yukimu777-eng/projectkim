@@ -45,6 +45,14 @@ Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/echo" -ContentTyp
 ```
 
 `message` を空で送ると、`400` エラー（`message is required`）になります。
+`message` が101文字以上でも、`400` エラーになります。
+
+長すぎる入力の確認例:
+
+```powershell
+$body = @{ message = ("a" * 101) } | ConvertTo-Json
+Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/echo" -ContentType "application/json" -Body $body
+```
 
 ## コマンド早見表
 

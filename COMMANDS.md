@@ -13,6 +13,7 @@
 | メモ: hello確認 | `http://localhost:3000/api/hello?name=Yuta` | 名前付きの挨拶APIを確認する |
 | メモ: time確認 | `http://localhost:3000/api/time` | 現在時刻APIを確認する |
 | メモ: echo確認 | `Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/echo" -ContentType "application/json" -Body '{"message":"hello"}'` | POSTで送った文字を返すAPIを確認する |
+| メモ: echo長文エラー確認 | `$body = @{ message = ("a" * 101) } | ConvertTo-Json` + `Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/echo" -ContentType "application/json" -Body $body` | 101文字以上で400エラーになることを確認する |
 | メモ: 変更確認 | `git status` | 変更されたファイルを確認する |
 | メモ: 差分確認 | `git diff` | 変更内容の詳細を見る |
 | メモ: 追加（全体） | `git add .` | 変更ファイルをコミット対象にする |
@@ -33,5 +34,6 @@
 - `メモ: 開発起動`
 - `メモ: hello確認`
 - `メモ: echo確認`
+- `メモ: echo長文エラー確認`
 - `メモ: 変更確認`
 - `メモ: Cowork開始`

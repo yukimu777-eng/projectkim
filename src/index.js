@@ -2,6 +2,7 @@ const express = require("express");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MAX_ECHO_LENGTH = 100;
 
 app.use(express.json());
 
@@ -33,14 +34,28 @@ app.get("/api/time", (req, res) => {
 app.post("/api/echo", (req, res) => {
   const { message } = req.body || {};
 
-  if (!message || typeof message !== "string" || !message.trim()) {
+  if (typeof message !== "string") {
     return res.status(400).json({
       error: "message is required",
     });
   }
 
+  const normalizedMessage = message.trim();
+
+  if (!normalizedMessage) {
+    return res.status(400).json({
+      error: "message is required",
+    });
+  }
+
+  if (normalizedMessage.length > MAX_ECHO_LENGTH) {
+    return res.status(400).json({
+      error: `message must be ${MAX_ECHO_LENGTH} characters or fewer`,
+    });
+  }
+
   res.json({
-    echo: message.trim(),
+    echo: normalizedMessage,
   });
 });
 
