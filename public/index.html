@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo アプリ</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 1.5rem; }
+    input[type="text"] { padding: 8px; width: 70%; font-size: 1rem; }
+    button { padding: 8px 16px; font-size: 1rem; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin-top: 16px; }
+    li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
+    li.done span { text-decoration: line-through; color: #aaa; }
+    .del-btn { margin-left: auto; color: red; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>📝 Todo リスト</h1>
+  <div>
+    <input id="todoInput" type="text" placeholder="やることを入力..." />
+    <button onclick="addTodo()">追加</button>
+  </div>
+  <ul id="todoList"></ul>
+
+  <script>
+    async function fetchTodos() {
+      const res = await fetch("/api/todos");
+      const data = await res.json();
+      renderTodos(data.todos);
+    }
+
+    function renderTodos(todos) {
+      const list = document.getElementById("todoList");
+      list.innerHTML = "";
+      todos.forEach(todo => {
+        const li = document.createElement("li");
+        if (todo.done) li.classList.add("done");
+        li.innerHTML = `
+          <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleTodo(${todo.id}, this.checked)" />
+          <span>${todo.text}</span>
+          <button class="del-btn" onclick="deleteTodo(${todo.id})">✕</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    async function addTodo() {
+      const input = document.getElementById("todoInput");
+      const text = input.value.trim();
+      if (!text) return;
+      await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      input.value = "";
+      fetchTodos();
+    }
+
+    async function toggleTodo(id, done) {
+      await fetch(`/api/todos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done })
+      });
+      fetchTodos();
+    }
+
+    async function deleteTodo(id) {
+      await fetch(`/api/todos/${id}`, { method: "DELETE" });
+      fetchTodos();
+    }
+
+    fetchTodos();
+  </script>
+</body>
+</html>
