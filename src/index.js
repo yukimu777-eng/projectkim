@@ -8,6 +8,9 @@ const MAX_ECHO_LENGTH = 100;
 const MAX_NOTE_LENGTH = 200;
 const MAX_TODO_TEXT_LENGTH = 120;
 
+const VALID_PRIORITIES = ["high", "medium", "low"];
+const VALID_CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
+
 const DATA_DIR = path.join(__dirname, "..", "data");
 const TODOS_FILE_PATH = path.join(DATA_DIR, "todos.json");
 
@@ -17,14 +20,10 @@ let nextTodoId = getNextTodoId(todos);
 
 function loadTodos() {
   try {
-    if (!fs.existsSync(TODOS_FILE_PATH)) {
-      return [];
-    }
+    if (!fs.existsSync(TODOS_FILE_PATH)) return [];
     const raw = fs.readFileSync(TODOS_FILE_PATH, "utf8");
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+    if (!Array.isArray(parsed)) return [];
     return parsed;
   } catch (error) {
     console.warn("Failed to load todos from file. Starting with empty list.");
@@ -44,12 +43,9 @@ function saveTodos() {
 }
 
 function getNextTodoId(currentTodos) {
-  if (currentTodos.length === 0) {
-    return 1;
-  }
+  if (currentTodos.length === 0) return 1;
   const maxId = currentTodos.reduce(
-    (max, item) => Math.max(max, Number(item.id) || 0),
-    0
+    (max, item) => Math.max(max, Number(item.id) || 0), 0
   );
   return maxId + 1;
 }
@@ -123,7 +119,7 @@ app.get("/api/todos", (req, res) => {
 });
 
 app.post("/api/todos", (req, res) => {
-  const { text, dueDate } = req.body || {};
+  const { text, dueDate, priority, category } = req.body || {};
   if (typeof text !== "string" || !text.trim()) {
     return res.status(400).json({ error: "text is required" });
   }
@@ -133,11 +129,19 @@ app.post("/api/todos", (req, res) => {
       error: `text must be ${MAX_TODO_TEXT_LENGTH} characters or fewer`,
     });
   }
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: "invalid priority" });
+  }
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: "invalid category" });
+  }
   const todo = {
     id: nextTodoId,
     text: normalizedText,
     done: false,
     dueDate: dueDate || null,
+    priority: priority || "medium",
+    category: category || null,
     order: todos.length,
   };
   nextTodoId += 1;
@@ -167,7 +171,7 @@ app.put("/api/todos/reorder", (req, res) => {
 
 app.put("/api/todos/:id", (req, res) => {
   const id = Number(req.params.id);
-  const { text, done, dueDate } = req.body || {};
+  const { text, done, dueDate, priority, category } = req.body || {};
   const todo = todos.find((item) => item.id === id);
   if (!todo) {
     return res.status(404).json({ error: "todo not found" });
@@ -192,6 +196,18 @@ app.put("/api/todos/:id", (req, res) => {
   }
   if (dueDate !== undefined) {
     todo.dueDate = dueDate || null;
+  }
+  if (priority !== undefined) {
+    if (!VALID_PRIORITIES.includes(priority)) {
+      return res.status(400).json({ error: "invalid priority" });
+    }
+    todo.priority = priority;
+  }
+  if (category !== undefined) {
+    if (category !== null && !VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({ error: "invalid category" });
+    }
+    todo.category = category;
   }
   saveTodos();
   res.json({ message: "todo updated", todo });
