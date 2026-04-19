@@ -32,6 +32,8 @@ const MAX_MEMO_CONTENT_LENGTH = 500;
 const MAX_MEMO_TITLE_LENGTH = 60;
 const VALID_PRIORITIES = ["high", "medium", "low"];
 const VALID_CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
+const VALID_REPEATS = ["daily", "weekly", "monthly"];
+const MAX_TASK_MEMO_LENGTH = 2000;
 
 const DATA_DIR = path.join(__dirname, "..", "data");
 
@@ -260,19 +262,20 @@ app.get("/api/todos", requireAuth, async (req, res) => {
 });
 
 app.post("/api/todos", requireAuth, async (req, res) => {
-  const { text, dueDate, priority, category } = req.body || {};
+  const { text, dueDate, priority, category, repeat } = req.body || {};
   if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text is required" });
   const t = text.trim();
   if (t.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: "text too long" });
   if (priority && !VALID_PRIORITIES.includes(priority)) return res.status(400).json({ error: "invalid priority" });
   if (category && !VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: "invalid category" });
+  if (repeat && !VALID_REPEATS.includes(repeat)) return res.status(400).json({ error: "invalid repeat" });
   const todos = await loadUserData("todos", req.user.id, "todos", []);
   const todo = {
     id: getNextId(todos), text: t, done: false,
     dueDate: dueDate || null, priority: priority || "medium",
     category: category || null, order: todos.length,
     createdAt: new Date().toISOString(), completedAt: null,
-    subtasks: [],
+    subtasks: [], repeat: repeat || null, memo: null,
   };
   todos.push(todo);
   await saveUserData("todos", req.user.id, "todos", todos);
@@ -296,7 +299,7 @@ app.put("/api/todos/reorder", requireAuth, async (req, res) => {
 
 app.put("/api/todos/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
-  const { text, done, dueDate, priority, category } = req.body || {};
+  const { text, done, dueDate, priority, category, repeat, memo } = req.body || {};
   const todos = await loadUserData("todos", req.user.id, "todos", []);
   const todo = todos.find(item => item.id === id);
   if (!todo) return res.status(404).json({ error: "todo not found" });
@@ -317,6 +320,20 @@ app.put("/api/todos/:id", requireAuth, async (req, res) => {
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
       await saveUserData("activity_log", req.user.id, "activity_log",
         activityLog.filter(e => new Date(e.completedAt) >= cutoff));
+      if (todo.repeat) {
+        const base = todo.dueDate ? new Date(todo.dueDate) : new Date();
+        if (todo.repeat === "daily")   base.setDate(base.getDate() + 1);
+        else if (todo.repeat === "weekly")  base.setDate(base.getDate() + 7);
+        else if (todo.repeat === "monthly") base.setMonth(base.getMonth() + 1);
+        todos.push({
+          id: getNextId(todos), text: todo.text, done: false,
+          dueDate: base.toISOString().split('T')[0],
+          priority: todo.priority, category: todo.category,
+          order: todos.length, createdAt: new Date().toISOString(),
+          completedAt: null, subtasks: [],
+          repeat: todo.repeat, memo: todo.memo || null,
+        });
+      }
     }
     if (wasDone && !done) todo.completedAt = null;
   }
@@ -328,6 +345,13 @@ app.put("/api/todos/:id", requireAuth, async (req, res) => {
   if (category !== undefined) {
     if (category !== null && !VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: "invalid category" });
     todo.category = category;
+  }
+  if (repeat !== undefined) {
+    if (repeat !== null && !VALID_REPEATS.includes(repeat)) return res.status(400).json({ error: "invalid repeat" });
+    todo.repeat = repeat;
+  }
+  if (memo !== undefined) {
+    todo.memo = typeof memo === "string" ? memo.slice(0, MAX_TASK_MEMO_LENGTH) || null : null;
   }
   await saveUserData("todos", req.user.id, "todos", todos);
   res.json({ message: "todo updated", todo });

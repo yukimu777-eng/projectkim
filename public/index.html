@@ -976,6 +976,66 @@
     }
     .subtask-add-btn:hover { background: var(--btn-primary-hover); }
 
+    /* ===== メモパネル ===== */
+    .memo-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 1rem; padding: 0 4px; line-height: 1;
+      flex-shrink: 0; opacity: 0.45; transition: opacity 0.2s;
+    }
+    .memo-btn:hover { opacity: 1; }
+    .memo-btn.has-memo { opacity: 1; }
+
+    .copy-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 1rem; padding: 0 4px; line-height: 1;
+      flex-shrink: 0; color: var(--text-sub); transition: color 0.2s;
+    }
+    .copy-btn:hover { color: var(--input-focus); }
+
+    .memo-panel {
+      margin-top: 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .memo-edit-textarea {
+      width: 100%; padding: 8px 10px; font-size: 0.84rem;
+      border: none; border-bottom: 1.5px solid var(--border);
+      outline: none; background: var(--input-bg); color: var(--text);
+      resize: vertical; min-height: 72px; font-family: monospace;
+      display: block; transition: background 0.4s;
+    }
+    .memo-edit-textarea::placeholder { color: var(--text-sub); }
+
+    .memo-preview {
+      padding: 8px 10px; font-size: 0.84rem; color: var(--text);
+      line-height: 1.6; background: var(--li-hover);
+      min-height: 36px; border-bottom: 1.5px solid var(--border);
+      word-break: break-word;
+    }
+    .memo-preview p { margin: 0 0 6px; }
+    .memo-preview p:last-child { margin-bottom: 0; }
+    .memo-preview h1, .memo-preview h2, .memo-preview h3 { margin: 6px 0 3px; font-size: 0.94rem; }
+    .memo-preview ul, .memo-preview ol { padding-left: 18px; margin: 3px 0; }
+    .memo-preview code { background: var(--border); padding: 1px 4px; border-radius: 3px; font-size: 0.8rem; }
+    .memo-preview pre  { background: var(--border); padding: 8px; border-radius: 6px; overflow-x: auto; }
+    .memo-preview a    { color: var(--input-focus); }
+
+    .memo-panel-actions {
+      display: flex; gap: 6px; padding: 7px 10px; background: var(--li-hover);
+    }
+
+    .edit-memo-textarea {
+      width: 100%; padding: 6px 10px; font-size: 0.84rem;
+      border: 1.5px solid var(--border); border-radius: 6px;
+      outline: none; background: var(--input-bg); color: var(--text);
+      resize: vertical; min-height: 56px; font-family: monospace;
+      transition: border-color 0.2s;
+    }
+    .edit-memo-textarea:focus { border-color: var(--input-focus); }
+    .edit-memo-textarea::placeholder { color: var(--text-sub); }
+
     /* ===== ログイン画面オーバーレイ ===== */
     .login-overlay {
       position: fixed; inset: 0; z-index: 1000;
@@ -1034,6 +1094,7 @@
     }
     .logout-btn:hover { background: #e74c3c; color: #fff; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <!-- ログイン画面オーバーレイ -->
@@ -1092,6 +1153,12 @@
         <option value="プライベート">プライベート</option>
         <option value="学習">学習</option>
         <option value="その他">その他</option>
+      </select>
+      <select id="repeatInput">
+        <option value="">繰り返しなし</option>
+        <option value="daily">🔁 毎日</option>
+        <option value="weekly">🔁 毎週</option>
+        <option value="monthly">🔁 毎月</option>
       </select>
       <button onclick="addTodo()">追加</button>
     </div>
@@ -1239,6 +1306,7 @@
     let selectedIds = new Set();
     let editingId = null;
     let expandedSubtasks = new Set();
+    let expandedMemos = new Set();
 
     const CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
 
@@ -1536,6 +1604,92 @@
       }
     });
 
+    // ===== メモパネル =====
+    function renderMemoPanel(todo, container) {
+      if (!container || !expandedMemos.has(todo.id)) return;
+
+      const panel = document.createElement('div');
+      panel.className = 'memo-panel';
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'memo-edit-textarea';
+      textarea.placeholder = 'メモを入力...（マークダウン対応）';
+      textarea.value = todo.memo || '';
+      textarea.id = `memo-textarea-${todo.id}`;
+
+      const preview = document.createElement('div');
+      preview.className = 'memo-preview';
+      const updatePreview = (val) => {
+        if (val.trim()) {
+          preview.innerHTML = marked.parse(val);
+        } else {
+          preview.innerHTML = '<span style="color:var(--text-sub);font-size:0.8rem">プレビューがここに表示されます</span>';
+        }
+      };
+      updatePreview(todo.memo || '');
+      textarea.addEventListener('input', () => updatePreview(textarea.value));
+
+      const actions = document.createElement('div');
+      actions.className = 'memo-panel-actions';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'save-btn';
+      saveBtn.textContent = '保存';
+      saveBtn.onclick = () => saveMemo(todo.id);
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'cancel-btn';
+      closeBtn.textContent = '閉じる';
+      closeBtn.onclick = () => toggleMemoPanel(todo.id);
+
+      actions.appendChild(saveBtn);
+      actions.appendChild(closeBtn);
+      panel.appendChild(textarea);
+      panel.appendChild(preview);
+      panel.appendChild(actions);
+      container.appendChild(panel);
+    }
+
+    function toggleMemoPanel(todoId) {
+      if (expandedMemos.has(todoId)) {
+        expandedMemos.delete(todoId);
+      } else {
+        expandedMemos.add(todoId);
+      }
+      renderTodos();
+      if (expandedMemos.has(todoId)) {
+        setTimeout(() => document.getElementById(`memo-textarea-${todoId}`)?.focus(), 50);
+      }
+    }
+
+    async function saveMemo(todoId) {
+      const textarea = document.getElementById(`memo-textarea-${todoId}`);
+      if (!textarea) return;
+      await fetch(`/api/todos/${todoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memo: textarea.value.trim() || null })
+      });
+      fetchTodos();
+    }
+
+    // ===== コピー機能 =====
+    async function copyTodo(id) {
+      const todo = allTodos.find(t => t.id === id);
+      if (!todo) return;
+      const text = ('コピー: ' + todo.text).slice(0, 120);
+      await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text, dueDate: todo.dueDate,
+          priority: todo.priority, category: todo.category,
+          repeat: todo.repeat || null,
+        })
+      });
+      fetchTodos();
+    }
+
     // ===== サブタスク機能 =====
     function renderSubtaskSection(todo, container) {
       if (!container) return;
@@ -1810,7 +1964,14 @@
                   <option value="学習" ${todo.category==='学習'?'selected':''}>学習</option>
                   <option value="その他" ${todo.category==='その他'?'selected':''}>その他</option>
                 </select>
+                <select id="edit-repeat-${todo.id}">
+                  <option value="" ${!todo.repeat?'selected':''}>繰り返しなし</option>
+                  <option value="daily" ${todo.repeat==='daily'?'selected':''}>🔁 毎日</option>
+                  <option value="weekly" ${todo.repeat==='weekly'?'selected':''}>🔁 毎週</option>
+                  <option value="monthly" ${todo.repeat==='monthly'?'selected':''}>🔁 毎月</option>
+                </select>
               </div>
+              <textarea id="edit-memo-${todo.id}" class="edit-memo-textarea" placeholder="メモ（マークダウン対応）"></textarea>
               <div class="edit-actions">
                 <button class="save-btn" onclick="saveEdit(${todo.id})">保存</button>
                 <button class="cancel-btn" onclick="cancelEdit()">キャンセル</button>
@@ -1820,6 +1981,8 @@
           // XSS対策: value は JS で設定
           const textInput = li.querySelector(`#edit-text-${todo.id}`);
           if (textInput) textInput.value = todo.text;
+          const memoInput = li.querySelector(`#edit-memo-${todo.id}`);
+          if (memoInput) memoInput.value = todo.memo || '';
           li.draggable = false;
         } else {
           // ===== 通常表示モード =====
@@ -1834,15 +1997,19 @@
               <button class="done-toggle" onclick="toggleTodo(${todo.id}, ${!todo.done})" title="${todo.done ? '未完了に戻す' : '完了にする'}">${todo.done ? '✅' : '⬜'}</button>
             </div>
             <div class="todo-body">
-              <span class="todo-text">${todo.text}</span>
+              <span class="todo-text">${todo.repeat ? '🔁 ' : ''}${todo.text}</span>
               <div class="todo-meta">${priorityHTML}${categoryHTML}${dueDateHTML}</div>
               <div id="subtask-section-${todo.id}"></div>
+              <div id="memo-panel-${todo.id}"></div>
             </div>
+            <button class="memo-btn ${todo.memo ? 'has-memo' : ''}" onclick="toggleMemoPanel(${todo.id})" title="メモ">📝</button>
             <button class="edit-btn" onclick="openEditForm(${todo.id})" title="編集">✏️</button>
+            <button class="copy-btn" onclick="copyTodo(${todo.id})" title="コピー">📋</button>
             <button class="del-btn" onclick="deleteTodoWithAnim(${todo.id}, this)" title="削除">✕</button>
           `;
           li.draggable = true;
           renderSubtaskSection(todo, li.querySelector(`#subtask-section-${todo.id}`));
+          renderMemoPanel(todo, li.querySelector(`#memo-panel-${todo.id}`));
         }
 
         if (editingId !== todo.id) {
@@ -1891,10 +2058,12 @@
     }
 
     async function saveEdit(id) {
-      const textEl = document.getElementById('edit-text-' + id);
-      const dateEl = document.getElementById('edit-date-' + id);
-      const priEl  = document.getElementById('edit-priority-' + id);
-      const catEl  = document.getElementById('edit-category-' + id);
+      const textEl   = document.getElementById('edit-text-' + id);
+      const dateEl   = document.getElementById('edit-date-' + id);
+      const priEl    = document.getElementById('edit-priority-' + id);
+      const catEl    = document.getElementById('edit-category-' + id);
+      const repEl    = document.getElementById('edit-repeat-' + id);
+      const memoEl   = document.getElementById('edit-memo-' + id);
       const text = textEl ? textEl.value.trim() : '';
       if (!text) { if (textEl) textEl.focus(); return; }
       await fetch(`/api/todos/${id}`, {
@@ -1902,9 +2071,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          dueDate: dateEl ? (dateEl.value || null) : undefined,
-          priority: priEl ? priEl.value : undefined,
-          category: catEl ? (catEl.value || null) : undefined,
+          dueDate:   dateEl ? (dateEl.value || null) : undefined,
+          priority:  priEl  ? priEl.value            : undefined,
+          category:  catEl  ? (catEl.value || null)  : undefined,
+          repeat:    repEl  ? (repEl.value || null)   : undefined,
+          memo:      memoEl ? (memoEl.value.trim() || null) : undefined,
         })
       });
       editingId = null;
@@ -1916,14 +2087,20 @@
       const dueDateInput = document.getElementById("dueDateInput");
       const priorityInput = document.getElementById("priorityInput");
       const categoryInput = document.getElementById("categoryInput");
+      const repeatInput = document.getElementById("repeatInput");
       const text = input.value.trim();
       if (!text) return;
       await fetch("/api/todos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, dueDate: dueDateInput.value || null, priority: priorityInput.value, category: categoryInput.value || null })
+        body: JSON.stringify({
+          text, dueDate: dueDateInput.value || null,
+          priority: priorityInput.value, category: categoryInput.value || null,
+          repeat: repeatInput.value || null,
+        })
       });
-      input.value = ""; dueDateInput.value = ""; priorityInput.value = "medium"; categoryInput.value = "";
+      input.value = ""; dueDateInput.value = ""; priorityInput.value = "medium";
+      categoryInput.value = ""; repeatInput.value = "";
       fetchTodos();
     }
 
