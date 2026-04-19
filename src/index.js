@@ -272,6 +272,7 @@ app.post("/api/todos", requireAuth, async (req, res) => {
     dueDate: dueDate || null, priority: priority || "medium",
     category: category || null, order: todos.length,
     createdAt: new Date().toISOString(), completedAt: null,
+    subtasks: [],
   };
   todos.push(todo);
   await saveUserData("todos", req.user.id, "todos", todos);
@@ -340,6 +341,59 @@ app.delete("/api/todos/:id", requireAuth, async (req, res) => {
   const [deleted] = todos.splice(index, 1);
   await saveUserData("todos", req.user.id, "todos", todos);
   res.json({ message: "todo deleted", todo: deleted });
+});
+
+// ===== サブタスクAPI =====
+app.post("/api/todos/:id/subtasks", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const { text } = req.body || {};
+  if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text is required" });
+  const t = text.trim();
+  if (t.length > MAX_TODO_TEXT_LENGTH) return res.status(400).json({ error: "text too long" });
+  const todos = await loadUserData("todos", req.user.id, "todos", []);
+  const todo = todos.find(item => item.id === id);
+  if (!todo) return res.status(404).json({ error: "todo not found" });
+  if (!Array.isArray(todo.subtasks)) todo.subtasks = [];
+  const subtask = { id: getNextId(todo.subtasks), text: t, completed: false, createdAt: new Date().toISOString() };
+  todo.subtasks.push(subtask);
+  await saveUserData("todos", req.user.id, "todos", todos);
+  res.status(201).json({ message: "subtask created", subtask, todo });
+});
+
+app.put("/api/todos/:id/subtasks/:sid", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const sid = Number(req.params.sid);
+  const { completed, text } = req.body || {};
+  const todos = await loadUserData("todos", req.user.id, "todos", []);
+  const todo = todos.find(item => item.id === id);
+  if (!todo) return res.status(404).json({ error: "todo not found" });
+  if (!Array.isArray(todo.subtasks)) return res.status(404).json({ error: "subtask not found" });
+  const subtask = todo.subtasks.find(s => s.id === sid);
+  if (!subtask) return res.status(404).json({ error: "subtask not found" });
+  if (completed !== undefined) {
+    if (typeof completed !== "boolean") return res.status(400).json({ error: "completed must be boolean" });
+    subtask.completed = completed;
+  }
+  if (text !== undefined) {
+    if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "text must be non-empty" });
+    subtask.text = text.trim().slice(0, MAX_TODO_TEXT_LENGTH);
+  }
+  await saveUserData("todos", req.user.id, "todos", todos);
+  res.json({ message: "subtask updated", subtask, todo });
+});
+
+app.delete("/api/todos/:id/subtasks/:sid", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const sid = Number(req.params.sid);
+  const todos = await loadUserData("todos", req.user.id, "todos", []);
+  const todo = todos.find(item => item.id === id);
+  if (!todo) return res.status(404).json({ error: "todo not found" });
+  if (!Array.isArray(todo.subtasks)) return res.status(404).json({ error: "subtask not found" });
+  const index = todo.subtasks.findIndex(s => s.id === sid);
+  if (index === -1) return res.status(404).json({ error: "subtask not found" });
+  const [deleted] = todo.subtasks.splice(index, 1);
+  await saveUserData("todos", req.user.id, "todos", todos);
+  res.json({ message: "subtask deleted", subtask: deleted, todo });
 });
 
 app.listen(PORT, () => console.log(`API server listening on http://localhost:${PORT}`));
