@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const session = require("express-session");
+const RedisStore = require("connect-redis").default;
+const { createClient } = require("redis");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
@@ -74,22 +76,16 @@ function getNextId(arr) {
   return arr.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
-// ===== Redis バックドセッションストア =====
+// ===== セッション用Redisクライアント（connect-redis） =====
+// データ用 @upstash/redis とは別インスタンスを作成
 let sessionStore;
-if (redis) {
-  class RedisSessionStore extends session.Store {
-    get(sid, cb) {
-      redis.get("sess:" + sid).then(d => cb(null, d)).catch(cb);
-    }
-    set(sid, sess, cb) {
-      const ttl = sess.cookie?.maxAge ? Math.ceil(sess.cookie.maxAge / 1000) : 86400;
-      redis.set("sess:" + sid, sess, { ex: ttl }).then(() => cb(null)).catch(cb);
-    }
-    destroy(sid, cb) {
-      redis.del("sess:" + sid).then(() => cb(null)).catch(cb);
-    }
-  }
-  sessionStore = new RedisSessionStore();
+if (process.env.REDIS_URL) {
+  const sessionRedisClient = createClient({ url: process.env.REDIS_URL });
+  sessionRedisClient.connect().catch(console.error);
+  sessionStore = new RedisStore({ client: sessionRedisClient, prefix: "sess:" });
+  console.log("Redis session store enabled");
+} else {
+  console.log("REDIS_URL not set — using memory session store (local dev only)");
 }
 
 const isProd = !!process.env.VERCEL || process.env.NODE_ENV === "production";
