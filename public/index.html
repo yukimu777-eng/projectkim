@@ -826,6 +826,63 @@
     [data-theme="dark"] li.overdue-item { background: #2d0a0a; }
     li.overdue-item:hover { background: #fee2e2; }
     [data-theme="dark"] li.overdue-item:hover { background: #3d0f0f; }
+
+    /* 完了トグルボタン */
+    .done-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.25rem; padding: 0 2px; line-height: 1;
+      flex-shrink: 0; transition: transform 0.15s;
+    }
+    .done-toggle:hover { transform: scale(1.2); }
+
+    /* 編集ボタン */
+    .edit-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0 4px;
+      line-height: 1; transition: color 0.2s; flex-shrink: 0;
+    }
+    .edit-btn:hover { color: var(--input-focus); }
+
+    /* インライン編集フォーム */
+    .edit-form { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+    .edit-text-input {
+      width: 100%; padding: 6px 10px; font-size: 1rem;
+      border: 2px solid var(--input-focus); border-radius: 6px;
+      outline: none; background: var(--input-bg); color: var(--text);
+    }
+
+    .edit-fields-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+
+    .edit-fields-row input[type="date"],
+    .edit-fields-row select {
+      padding: 5px 8px; font-size: 0.82rem;
+      border: 1.5px solid var(--border); border-radius: 6px;
+      outline: none; background: var(--input-bg); color: var(--text);
+      cursor: pointer;
+    }
+    .edit-fields-row input[type="date"]:focus,
+    .edit-fields-row select:focus { border-color: var(--input-focus); }
+
+    .edit-actions { display: flex; gap: 6px; }
+
+    .save-btn {
+      padding: 5px 14px; font-size: 0.85rem;
+      background: var(--btn-primary); color: #fff;
+      border: none; border-radius: 6px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .save-btn:hover { background: var(--btn-primary-hover); }
+
+    .cancel-btn {
+      padding: 5px 12px; font-size: 0.85rem;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 6px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .cancel-btn:hover { border-color: var(--text-sub); color: var(--text); }
   </style>
 </head>
 <body>
@@ -1004,6 +1061,7 @@
     let dragSrcId = null;
     let currentSort = 'created-desc';
     let selectedIds = new Set();
+    let editingId = null;
 
     const CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
 
@@ -1443,34 +1501,71 @@
         const priorityHTML = `<span class="priority-badge ${priorityCls}">優先度: ${priorityLabel}</span>`;
         const isSelected = selectedIds.has(todo.id);
 
-        li.innerHTML = `
-          <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
-          <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-          <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleTodo(${todo.id}, this.checked)" />
-          <div class="todo-body">
-            <span class="todo-text" title="ダブルクリックして編集" ondblclick="startEdit(${todo.id}, this)">${todo.text}</span>
-            <div class="todo-meta">${priorityHTML}${categoryHTML}${dueDateHTML}</div>
-          </div>
-          <button class="del-btn" onclick="deleteTodoWithAnim(${todo.id}, this)" title="削除">✕</button>
-        `;
+        if (editingId === todo.id) {
+          // ===== 編集モード =====
+          li.innerHTML = `
+            <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
+            <div class="edit-form">
+              <input type="text" id="edit-text-${todo.id}" class="edit-text-input" placeholder="タスク名" />
+              <div class="edit-fields-row">
+                <input type="date" id="edit-date-${todo.id}" value="${todo.dueDate || ''}" />
+                <select id="edit-priority-${todo.id}">
+                  <option value="high" ${todo.priority==='high'?'selected':''}>優先度: 高</option>
+                  <option value="medium" ${todo.priority==='medium'?'selected':''}>優先度: 中</option>
+                  <option value="low" ${todo.priority==='low'?'selected':''}>優先度: 低</option>
+                </select>
+                <select id="edit-category-${todo.id}">
+                  <option value="" ${!todo.category?'selected':''}>カテゴリなし</option>
+                  <option value="仕事" ${todo.category==='仕事'?'selected':''}>仕事</option>
+                  <option value="プライベート" ${todo.category==='プライベート'?'selected':''}>プライベート</option>
+                  <option value="学習" ${todo.category==='学習'?'selected':''}>学習</option>
+                  <option value="その他" ${todo.category==='その他'?'selected':''}>その他</option>
+                </select>
+              </div>
+              <div class="edit-actions">
+                <button class="save-btn" onclick="saveEdit(${todo.id})">保存</button>
+                <button class="cancel-btn" onclick="cancelEdit()">キャンセル</button>
+              </div>
+            </div>
+          `;
+          // XSS対策: value は JS で設定
+          const textInput = li.querySelector(`#edit-text-${todo.id}`);
+          if (textInput) textInput.value = todo.text;
+          li.draggable = false;
+        } else {
+          // ===== 通常表示モード =====
+          li.innerHTML = `
+            <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
+            <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
+            <button class="done-toggle" onclick="toggleTodo(${todo.id}, ${!todo.done})" title="${todo.done ? '未完了に戻す' : '完了にする'}">${todo.done ? '✅' : '⬜'}</button>
+            <div class="todo-body">
+              <span class="todo-text">${todo.text}</span>
+              <div class="todo-meta">${priorityHTML}${categoryHTML}${dueDateHTML}</div>
+            </div>
+            <button class="edit-btn" onclick="openEditForm(${todo.id})" title="編集">✏️</button>
+            <button class="del-btn" onclick="deleteTodoWithAnim(${todo.id}, this)" title="削除">✕</button>
+          `;
+          li.draggable = true;
+        }
 
-        li.draggable = true;
-        li.addEventListener('dragstart', (e) => { dragSrcId = todo.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-        li.addEventListener('dragend', () => { li.classList.remove('dragging'); document.querySelectorAll('li.drag-over').forEach(el => el.classList.remove('drag-over')); });
-        li.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; document.querySelectorAll('li.drag-over').forEach(el => el.classList.remove('drag-over')); li.classList.add('drag-over'); });
-        li.addEventListener('drop', async (e) => {
-          e.preventDefault(); li.classList.remove('drag-over');
-          if (dragSrcId === todo.id) return;
-          const srcIndex = allTodos.findIndex(t => t.id === dragSrcId);
-          const dstIndex = allTodos.findIndex(t => t.id === todo.id);
-          if (srcIndex === -1 || dstIndex === -1) return;
-          const reordered = [...allTodos];
-          const [moved] = reordered.splice(srcIndex, 1);
-          reordered.splice(dstIndex, 0, moved);
-          allTodos = reordered; renderTodos(); updateStats();
-          await fetch('/api/todos/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderedIds: reordered.map(t => t.id) }) });
-          fetchTodos();
-        });
+        if (editingId !== todo.id) {
+          li.addEventListener('dragstart', (e) => { dragSrcId = todo.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+          li.addEventListener('dragend', () => { li.classList.remove('dragging'); document.querySelectorAll('li.drag-over').forEach(el => el.classList.remove('drag-over')); });
+          li.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; document.querySelectorAll('li.drag-over').forEach(el => el.classList.remove('drag-over')); li.classList.add('drag-over'); });
+          li.addEventListener('drop', async (e) => {
+            e.preventDefault(); li.classList.remove('drag-over');
+            if (dragSrcId === todo.id) return;
+            const srcIndex = allTodos.findIndex(t => t.id === dragSrcId);
+            const dstIndex = allTodos.findIndex(t => t.id === todo.id);
+            if (srcIndex === -1 || dstIndex === -1) return;
+            const reordered = [...allTodos];
+            const [moved] = reordered.splice(srcIndex, 1);
+            reordered.splice(dstIndex, 0, moved);
+            allTodos = reordered; renderTodos(); updateStats();
+            await fetch('/api/todos/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderedIds: reordered.map(t => t.id) }) });
+            fetchTodos();
+          });
+        }
 
         list.appendChild(li);
       });
@@ -1486,32 +1581,37 @@
       fetchTodos();
     }
 
-    function startEdit(id, el) {
-      const currentText = el.textContent;
-      const input = document.createElement('input');
-      input.type = 'text'; input.className = 'todo-edit-input'; input.value = currentText;
-      el.replaceWith(input); input.focus(); input.select();
-      async function save() {
-        const newText = input.value.trim();
-        if (newText && newText !== currentText) {
-          await fetch(`/api/todos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: newText }) });
-          fetchTodos();
-        } else {
-          const span = document.createElement('span');
-          span.className = 'todo-text'; span.title = 'ダブルクリックして編集'; span.textContent = currentText;
-          span.ondblclick = () => startEdit(id, span); input.replaceWith(span);
-        }
-      }
-      input.addEventListener('blur', save);
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-        if (e.key === 'Escape') {
-          input.removeEventListener('blur', save);
-          const span = document.createElement('span');
-          span.className = 'todo-text'; span.title = 'ダブルクリックして編集'; span.textContent = currentText;
-          span.ondblclick = () => startEdit(id, span); input.replaceWith(span);
-        }
+    function openEditForm(id) {
+      editingId = id;
+      renderTodos();
+      // フォームにフォーカス
+      setTimeout(() => document.getElementById('edit-text-' + id)?.focus(), 50);
+    }
+
+    function cancelEdit() {
+      editingId = null;
+      renderTodos();
+    }
+
+    async function saveEdit(id) {
+      const textEl = document.getElementById('edit-text-' + id);
+      const dateEl = document.getElementById('edit-date-' + id);
+      const priEl  = document.getElementById('edit-priority-' + id);
+      const catEl  = document.getElementById('edit-category-' + id);
+      const text = textEl ? textEl.value.trim() : '';
+      if (!text) { if (textEl) textEl.focus(); return; }
+      await fetch(`/api/todos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          dueDate: dateEl ? (dateEl.value || null) : undefined,
+          priority: priEl ? priEl.value : undefined,
+          category: catEl ? (catEl.value || null) : undefined,
+        })
       });
+      editingId = null;
+      fetchTodos();
     }
 
     async function addTodo() {
