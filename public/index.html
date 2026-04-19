@@ -1022,10 +1022,12 @@
       min-height: 36px; border-bottom: 1.5px solid var(--border);
       word-break: break-word;
     }
-    .memo-preview p { margin: 0 0 6px; }
+    .memo-preview p { margin: 0 0 0.3em; }
     .memo-preview p:last-child { margin-bottom: 0; }
-    .memo-preview h1, .memo-preview h2, .memo-preview h3 { margin: 6px 0 3px; font-size: 0.94rem; }
-    .memo-preview ul, .memo-preview ol { padding-left: 18px; margin: 3px 0; }
+    .memo-preview h1, .memo-preview h2, .memo-preview h3 { margin: 0.3em 0; font-size: 0.94rem; font-weight: 700; }
+    .memo-preview ul, .memo-preview ol { list-style: disc; padding-left: 1.2em; margin: 0.2em 0; }
+    .memo-preview ol { list-style: decimal; }
+    .memo-preview li { margin: 0 0 2px; }
     .memo-preview code { background: var(--border); padding: 1px 4px; border-radius: 3px; font-size: 0.8rem; }
     .memo-preview pre  { background: var(--border); padding: 8px; border-radius: 6px; overflow-x: auto; }
     .memo-preview a    { color: var(--input-focus); }
@@ -1315,6 +1317,7 @@
     let editingId = null;
     let expandedSubtasks = new Set();
     let expandedMemos = new Set();
+    let editingMemos = new Set();
 
     const CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
 
@@ -1616,56 +1619,97 @@
     function renderMemoPanel(todo, container) {
       if (!container || !expandedMemos.has(todo.id)) return;
 
+      const isEditing = editingMemos.has(todo.id);
       const panel = document.createElement('div');
       panel.className = 'memo-panel';
 
-      const textarea = document.createElement('textarea');
-      textarea.className = 'memo-edit-textarea';
-      textarea.placeholder = 'メモを入力...（マークダウン対応）';
-      textarea.value = todo.memo || '';
-      textarea.id = `memo-textarea-${todo.id}`;
+      if (isEditing) {
+        // 編集モード: textarea + ライブプレビュー
+        const textarea = document.createElement('textarea');
+        textarea.className = 'memo-edit-textarea';
+        textarea.placeholder = 'メモを入力...（マークダウン対応）';
+        textarea.value = todo.memo || '';
+        textarea.id = `memo-textarea-${todo.id}`;
 
-      const preview = document.createElement('div');
-      preview.className = 'memo-preview';
-      const updatePreview = (val) => {
-        if (val.trim()) {
-          preview.innerHTML = marked.parse(val);
-        } else {
-          preview.innerHTML = '<span style="color:var(--text-sub);font-size:0.8rem">プレビューがここに表示されます</span>';
-        }
-      };
-      updatePreview(todo.memo || '');
-      textarea.addEventListener('input', () => updatePreview(textarea.value));
+        const preview = document.createElement('div');
+        preview.className = 'memo-preview';
+        const updatePreview = (val) => {
+          preview.innerHTML = val.trim()
+            ? marked.parse(val)
+            : '<span style="color:var(--text-sub);font-size:0.8rem">プレビューがここに表示されます</span>';
+        };
+        updatePreview(todo.memo || '');
+        textarea.addEventListener('input', () => updatePreview(textarea.value));
 
-      const actions = document.createElement('div');
-      actions.className = 'memo-panel-actions';
+        const actions = document.createElement('div');
+        actions.className = 'memo-panel-actions';
 
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'save-btn';
-      saveBtn.textContent = '保存';
-      saveBtn.onclick = () => saveMemo(todo.id);
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'save-btn';
+        saveBtn.textContent = '保存';
+        saveBtn.onclick = () => saveMemo(todo.id);
 
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'cancel-btn';
-      closeBtn.textContent = '閉じる';
-      closeBtn.onclick = () => toggleMemoPanel(todo.id);
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'cancel-btn';
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.onclick = () => {
+          editingMemos.delete(todo.id);
+          if (!todo.memo) expandedMemos.delete(todo.id);
+          renderTodos();
+        };
 
-      actions.appendChild(saveBtn);
-      actions.appendChild(closeBtn);
-      panel.appendChild(textarea);
-      panel.appendChild(preview);
-      panel.appendChild(actions);
+        actions.appendChild(saveBtn);
+        actions.appendChild(cancelBtn);
+        panel.appendChild(textarea);
+        panel.appendChild(preview);
+        panel.appendChild(actions);
+      } else {
+        // プレビューモード: レンダリング済みメモ
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'memo-preview';
+        previewDiv.innerHTML = todo.memo ? marked.parse(todo.memo) : '';
+
+        const actions = document.createElement('div');
+        actions.className = 'memo-panel-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'save-btn';
+        editBtn.textContent = '編集';
+        editBtn.onclick = () => {
+          editingMemos.add(todo.id);
+          renderTodos();
+          setTimeout(() => document.getElementById(`memo-textarea-${todo.id}`)?.focus(), 50);
+        };
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'cancel-btn';
+        closeBtn.textContent = '閉じる';
+        closeBtn.onclick = () => {
+          expandedMemos.delete(todo.id);
+          editingMemos.delete(todo.id);
+          renderTodos();
+        };
+
+        actions.appendChild(editBtn);
+        actions.appendChild(closeBtn);
+        panel.appendChild(previewDiv);
+        panel.appendChild(actions);
+      }
+
       container.appendChild(panel);
     }
 
     function toggleMemoPanel(todoId) {
       if (expandedMemos.has(todoId)) {
         expandedMemos.delete(todoId);
+        editingMemos.delete(todoId);
       } else {
         expandedMemos.add(todoId);
+        const todo = allTodos.find(t => t.id === todoId);
+        if (!todo?.memo) editingMemos.add(todoId);
       }
       renderTodos();
-      if (expandedMemos.has(todoId)) {
+      if (editingMemos.has(todoId)) {
         setTimeout(() => document.getElementById(`memo-textarea-${todoId}`)?.focus(), 50);
       }
     }
@@ -1673,11 +1717,14 @@
     async function saveMemo(todoId) {
       const textarea = document.getElementById(`memo-textarea-${todoId}`);
       if (!textarea) return;
+      const memo = textarea.value.trim() || null;
       await fetch(`/api/todos/${todoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memo: textarea.value.trim() || null })
+        body: JSON.stringify({ memo })
       });
+      editingMemos.delete(todoId);
+      if (!memo) expandedMemos.delete(todoId);
       fetchTodos();
     }
 
