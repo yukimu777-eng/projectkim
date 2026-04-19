@@ -734,10 +734,108 @@
       font-size: 0.85rem;
       padding: 12px 0;
     }
+
+    /* ===== 期限切れアラートバナー ===== */
+    .overdue-alert {
+      background: #fef2f2;
+      border: 1.5px solid #fca5a5;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      animation: slideIn 0.3s ease;
+    }
+    [data-theme="dark"] .overdue-alert {
+      background: #450a0a;
+      border-color: #b91c1c;
+    }
+    .overdue-alert-msg {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #b91c1c;
+    }
+    [data-theme="dark"] .overdue-alert-msg { color: #fca5a5; }
+    .overdue-alert-btn {
+      padding: 6px 16px;
+      font-size: 0.88rem;
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .overdue-alert-btn:hover { background: #c0392b; }
+
+    /* ===== ツールバー行 ===== */
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .sort-select {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      background: var(--input-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.4s;
+    }
+    .sort-select:focus { border-color: var(--input-focus); }
+    .toolbar-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .toolbar-btn {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--filter-bg);
+      color: var(--filter-text);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .toolbar-btn:hover { border-color: var(--input-focus); color: var(--input-focus); }
+    .toolbar-btn.danger { border-color: #e74c3c; color: #e74c3c; }
+    .toolbar-btn.danger:hover { background: #e74c3c; color: #fff; }
+
+    /* 選択用チェックボックス */
+    .select-cb {
+      width: 16px; height: 16px;
+      cursor: pointer;
+      accent-color: #e74c3c;
+      flex-shrink: 0;
+    }
+
+    /* 期限切れTodo強調 */
+    li.overdue-item { background: #fff5f5; border-left-color: #e74c3c !important; }
+    [data-theme="dark"] li.overdue-item { background: #2d0a0a; }
+    li.overdue-item:hover { background: #fee2e2; }
+    [data-theme="dark"] li.overdue-item:hover { background: #3d0f0f; }
   </style>
 </head>
 <body>
   <div class="card">
+    <!-- 期限切れアラートバナー -->
+    <div id="overdueAlert" class="overdue-alert" style="display:none">
+      <span class="overdue-alert-msg" id="overdueAlertMsg">⚠️ 期限切れのTodoが0件あります</span>
+      <button class="overdue-alert-btn" onclick="dismissOverdueAlert()">確認する</button>
+    </div>
+
     <div class="header-row">
       <h1>📝 Todo リスト</h1>
       <div class="theme-switcher">
@@ -782,6 +880,23 @@
       <button id="filter-プライベート" onclick="setFilter('プライベート')">プライベート</button>
       <button id="filter-学習" onclick="setFilter('学習')">学習</button>
       <button id="filter-その他" onclick="setFilter('その他')">その他</button>
+    </div>
+
+    <!-- ツールバー（並び替え・選択削除） -->
+    <div class="toolbar-row">
+      <select class="sort-select" id="sortSelect" onchange="onSortChange()">
+        <option value="created-desc">作成日（新しい順）</option>
+        <option value="created-asc">作成日（古い順）</option>
+        <option value="due-asc">期限（近い順）</option>
+        <option value="due-desc">期限（遠い順）</option>
+        <option value="priority-asc">優先度（高い順）</option>
+        <option value="priority-desc">優先度（低い順）</option>
+      </select>
+      <div class="toolbar-btns">
+        <button class="toolbar-btn" id="selectAllBtn" onclick="selectAllToggle()">全選択</button>
+        <button class="toolbar-btn danger" id="deleteSelectedBtn" style="display:none" onclick="deleteSelected()">🗑️ 選択した0件を削除</button>
+        <button class="toolbar-btn danger" onclick="deleteAllDone()">✅ 完了済みをすべて削除</button>
+      </div>
     </div>
 
     <ul id="todoList"></ul>
@@ -887,8 +1002,120 @@
     let currentFilter = 'all';
     let allTodos = [];
     let dragSrcId = null;
+    let currentSort = 'created-desc';
+    let selectedIds = new Set();
 
     const CATEGORIES = ["仕事", "プライベート", "学習", "その他"];
+
+    // ===== 期限切れアラート =====
+    function checkOverdueTodos() {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const overdue = allTodos.filter(t => !t.done && t.dueDate && new Date(t.dueDate) < today);
+      const alertEl = document.getElementById('overdueAlert');
+      if (overdue.length > 0) {
+        document.getElementById('overdueAlertMsg').textContent = `⚠️ 期限切れのTodoが${overdue.length}件あります`;
+        alertEl.style.display = 'flex';
+      } else {
+        alertEl.style.display = 'none';
+      }
+    }
+
+    function dismissOverdueAlert() {
+      document.getElementById('overdueAlert').style.display = 'none';
+    }
+
+    // ===== 並び替え =====
+    function onSortChange() {
+      currentSort = document.getElementById('sortSelect').value;
+      renderTodos();
+    }
+
+    function sortTodos(arr) {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      const sorted = [...arr];
+      switch (currentSort) {
+        case 'created-asc':
+          return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        case 'due-asc':
+          return sorted.sort((a, b) => {
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return a.dueDate.localeCompare(b.dueDate);
+          });
+        case 'due-desc':
+          return sorted.sort((a, b) => {
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return b.dueDate.localeCompare(a.dueDate);
+          });
+        case 'priority-asc':
+          return sorted.sort((a, b) => priorityOrder[a.priority || 'medium'] - priorityOrder[b.priority || 'medium']);
+        case 'priority-desc':
+          return sorted.sort((a, b) => priorityOrder[b.priority || 'medium'] - priorityOrder[a.priority || 'medium']);
+        default: // created-desc
+          return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+    }
+
+    // ===== チェックボックス選択削除 =====
+    function onSelectChange(id, checked) {
+      if (checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+      const btn = document.getElementById('deleteSelectedBtn');
+      const count = selectedIds.size;
+      btn.style.display = count > 0 ? 'inline-block' : 'none';
+      if (count > 0) btn.textContent = `🗑️ 選択した${count}件を削除`;
+      const visibleIds = [...document.querySelectorAll('#todoList li')].map(li => Number(li.dataset.id));
+      const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+      document.getElementById('selectAllBtn').textContent = allSelected ? '全解除' : '全選択';
+    }
+
+    function selectAllToggle() {
+      const visibleIds = [...document.querySelectorAll('#todoList li')].map(li => Number(li.dataset.id));
+      const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+      if (allSelected) {
+        visibleIds.forEach(id => selectedIds.delete(id));
+      } else {
+        visibleIds.forEach(id => selectedIds.add(id));
+      }
+      renderTodos();
+      updateSelectionUI();
+    }
+
+    async function deleteSelected() {
+      const count = selectedIds.size;
+      if (count === 0) return;
+      if (!confirm(`選択した${count}件のTodoを削除しますか？`)) return;
+      const ids = [...selectedIds];
+      const list = document.getElementById('todoList');
+      ids.forEach(id => {
+        const el = list.querySelector(`[data-id="${id}"]`);
+        if (el) el.classList.add('removing');
+      });
+      await new Promise(r => setTimeout(r, 300));
+      await Promise.all(ids.map(id => fetch(`/api/todos/${id}`, { method: 'DELETE' })));
+      selectedIds.clear();
+      fetchTodos();
+    }
+
+    async function deleteAllDone() {
+      const doneTodos = allTodos.filter(t => t.done);
+      if (doneTodos.length === 0) { alert('完了済みのTodoはありません'); return; }
+      if (!confirm(`完了済みの${doneTodos.length}件をすべて削除しますか？`)) return;
+      const list = document.getElementById('todoList');
+      doneTodos.forEach(t => {
+        const el = list.querySelector(`[data-id="${t.id}"]`);
+        if (el) el.classList.add('removing');
+      });
+      await new Promise(r => setTimeout(r, 300));
+      await Promise.all(doneTodos.map(t => fetch(`/api/todos/${t.id}`, { method: 'DELETE' })));
+      fetchTodos();
+    }
 
     // テーマ管理
     function setTheme(theme) {
@@ -1081,6 +1308,7 @@
       renderTodos();
       updateStats();
       updateSummary();
+      checkOverdueTodos();
     }
 
     
@@ -1174,14 +1402,17 @@
       const list = document.getElementById("todoList");
       list.innerHTML = "";
       const keyword = getSearchKeyword();
+      const today = new Date(); today.setHours(0, 0, 0, 0);
 
-      const filtered = allTodos.filter(todo => {
+      let filtered = allTodos.filter(todo => {
         if (currentFilter === 'active') { if (todo.done) return false; }
         else if (currentFilter === 'done') { if (!todo.done) return false; }
         else if (CATEGORIES.includes(currentFilter)) { if (todo.category !== currentFilter) return false; }
         if (keyword && !todo.text.toLowerCase().includes(keyword)) return false;
         return true;
       });
+
+      filtered = sortTodos(filtered);
 
       if (filtered.length === 0) {
         const msgs = {
@@ -1191,6 +1422,7 @@
         };
         const e = msgs[currentFilter] || { icon: '📂', msg: 'このカテゴリにTodoがありません', sub: '追加してみましょう' };
         list.innerHTML = `<div class="empty-state"><span class="empty-icon">${e.icon}</span><p>${e.msg}</p><p class="empty-sub">${e.sub}</p></div>`;
+        updateSelectionUI();
         return;
       }
 
@@ -1200,14 +1432,19 @@
         if (todo.done) li.classList.add("done");
         li.classList.add('priority-' + (todo.priority || 'medium'));
 
+        const isOverdue = !todo.done && todo.dueDate && new Date(todo.dueDate) < today;
+        if (isOverdue) li.classList.add('overdue-item');
+
         const due = formatDueDate(todo.dueDate);
         const dueDateHTML = due ? `<span class="due-date ${due.cls}">${due.label}</span>` : '';
         const categoryHTML = todo.category ? `<span class="tag-badge tag-${todo.category}">${todo.category}</span>` : '';
         const priorityLabel = { high: '高', medium: '中', low: '低' }[todo.priority || 'medium'];
         const priorityCls = { high: 'p-high', medium: 'p-medium', low: 'p-low' }[todo.priority || 'medium'];
         const priorityHTML = `<span class="priority-badge ${priorityCls}">優先度: ${priorityLabel}</span>`;
+        const isSelected = selectedIds.has(todo.id);
 
         li.innerHTML = `
+          <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
           <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
           <input type="checkbox" ${todo.done ? "checked" : ""} onchange="toggleTodo(${todo.id}, this.checked)" />
           <div class="todo-body">
@@ -1237,6 +1474,8 @@
 
         list.appendChild(li);
       });
+
+      updateSelectionUI();
     }
 
     async function deleteTodoWithAnim(id, btn) {
