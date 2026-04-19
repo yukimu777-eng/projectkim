@@ -93,8 +93,7 @@ if (redis) {
 }
 
 const isProd = !!process.env.VERCEL || process.env.NODE_ENV === "production";
-const BASE_URL = process.env.APP_URL
-  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
+const BASE_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
