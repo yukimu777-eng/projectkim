@@ -883,9 +883,85 @@
       transition: all 0.2s;
     }
     .cancel-btn:hover { border-color: var(--text-sub); color: var(--text); }
+    /* ===== ログイン画面オーバーレイ ===== */
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+
+    .login-logo { font-size: 3.5rem; margin-bottom: 12px; }
+    .login-card h2 { margin: 0 0 8px; font-size: 1.6rem; color: #1a1a2e; }
+    .login-card p  { margin: 0 0 28px; color: #666; font-size: 0.95rem; }
+
+    .google-login-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 12px 24px; font-size: 1rem; font-weight: 600;
+      background: #fff; color: #3c4043;
+      border: 1.5px solid #dadce0; border-radius: 8px;
+      cursor: pointer; text-decoration: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: box-shadow 0.2s, background 0.2s;
+    }
+    .google-login-btn:hover { background: #f8f9fa; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .google-login-btn svg { flex-shrink: 0; }
+
+    .login-note { margin-top: 16px; font-size: 0.78rem; color: #999; }
+
+    /* ===== ユーザー情報バー ===== */
+    .user-info {
+      display: none; align-items: center; gap: 8px;
+      font-size: 0.85rem; color: var(--text-sub);
+    }
+
+    .user-photo {
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; border: 1.5px solid var(--border);
+      display: none;
+    }
+
+    .user-name { color: var(--text); font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .logout-btn {
+      padding: 5px 12px; font-size: 0.8rem;
+      background: transparent; color: #e74c3c;
+      border: 1.5px solid #e74c3c; border-radius: 20px;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .logout-btn:hover { background: #e74c3c; color: #fff; }
   </style>
 </head>
 <body>
+  <!-- ログイン画面オーバーレイ -->
+  <div id="loginOverlay" class="login-overlay" style="display:none">
+    <div class="login-card">
+      <div class="login-logo">📝</div>
+      <h2>Todo アプリ</h2>
+      <p>Googleアカウントでログインしてください</p>
+      <a href="/auth/google" class="google-login-btn">
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.29-8.16 2.29-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Googleでログイン
+      </a>
+      <p class="login-note">ログインすると自分だけのTodoを管理できます</p>
+    </div>
+  </div>
+
   <div class="card">
     <!-- 期限切れアラートバナー -->
     <div id="overdueAlert" class="overdue-alert" style="display:none">
@@ -895,10 +971,17 @@
 
     <div class="header-row">
       <h1>📝 Todo リスト</h1>
-      <div class="theme-switcher">
-        <button class="theme-btn active" onclick="setTheme('light')" id="theme-light">☀️ ライト</button>
-        <button class="theme-btn" onclick="setTheme('gradient')" id="theme-gradient">🌈 グラデ</button>
-        <button class="theme-btn" onclick="setTheme('dark')" id="theme-dark">🌙 ダーク</button>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="theme-switcher">
+          <button class="theme-btn active" onclick="setTheme('light')" id="theme-light">☀️ ライト</button>
+          <button class="theme-btn" onclick="setTheme('gradient')" id="theme-gradient">🌈 グラデ</button>
+          <button class="theme-btn" onclick="setTheme('dark')" id="theme-dark">🌙 ダーク</button>
+        </div>
+        <div class="user-info" id="userInfo">
+          <img id="userPhoto" class="user-photo" src="" alt="" />
+          <span class="user-name" id="userName"></span>
+          <a href="/auth/logout" class="logout-btn">ログアウト</a>
+        </div>
       </div>
     </div>
 
@@ -1646,9 +1729,37 @@
       if (e.key === "Enter") addTodo();
     });
 
-    fetchTodos();
-    fetchMemos();
-    fetchActivityLog();
+    // ===== 認証チェック =====
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/user');
+        if (res.ok) {
+          const { user } = await res.json();
+          if (user) {
+            // ログイン済み: アプリを表示
+            document.getElementById('loginOverlay').style.display = 'none';
+            const userInfo = document.getElementById('userInfo');
+            userInfo.style.display = 'flex';
+            if (user.photo) {
+              const photo = document.getElementById('userPhoto');
+              photo.src = user.photo;
+              photo.style.display = 'block';
+            }
+            document.getElementById('userName').textContent = user.displayName || user.email || '';
+            fetchTodos();
+            fetchMemos();
+            fetchActivityLog();
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Auth check failed:', e);
+      }
+      // 未ログイン: ログイン画面を表示
+      document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    checkAuth();
   </script>
 </body>
 </html>
