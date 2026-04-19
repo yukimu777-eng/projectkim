@@ -1535,9 +1535,15 @@
         } else {
           // ===== 通常表示モード =====
           li.innerHTML = `
-            <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <span style="font-size:0.65rem;color:var(--text-sub)">選択</span>
+              <input type="checkbox" class="select-cb" ${isSelected ? 'checked' : ''} onchange="onSelectChange(${todo.id}, this.checked)" title="選択" />
+            </div>
             <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-            <button class="done-toggle" onclick="toggleTodo(${todo.id}, ${!todo.done})" title="${todo.done ? '未完了に戻す' : '完了にする'}">${todo.done ? '✅' : '⬜'}</button>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <span style="font-size:0.65rem;color:var(--text-sub)">完了</span>
+              <button class="done-toggle" onclick="toggleTodo(${todo.id}, ${!todo.done})" title="${todo.done ? '未完了に戻す' : '完了にする'}">${todo.done ? '✅' : '⬜'}</button>
+            </div>
             <div class="todo-body">
               <span class="todo-text">${todo.text}</span>
               <div class="todo-meta">${priorityHTML}${categoryHTML}${dueDateHTML}</div>
