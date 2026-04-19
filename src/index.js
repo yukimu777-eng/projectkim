@@ -8,6 +8,7 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 // ===== Redis セットアップ =====
@@ -88,7 +89,6 @@ if (process.env.REDIS_URL) {
   console.log("REDIS_URL not set — using memory session store (local dev only)");
 }
 
-const isProd = !!process.env.VERCEL || process.env.NODE_ENV === "production";
 const BASE_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 app.use(express.json());
@@ -100,10 +100,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: isProd,
+    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: isProd ? "none" : "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   },
 }));
 
